@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "notices")
@@ -31,8 +32,8 @@ public class Notice  {
     @JoinColumn(name = "plan_item_id", unique = true)
     private PlanItem planItem;
 
-    @OneToOne(mappedBy = "notice", fetch = FetchType.LAZY)
-    private Decision decision;
+    @OneToMany(mappedBy = "notice", fetch = FetchType.LAZY)
+    private List<Decision> decisions;
 
 //    @Column(nullable = false)
     private String noticeNumber;

@@ -22,8 +22,8 @@ public class Decision  {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "notice_id", nullable = false,unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "notice_id", nullable = false)
     private Notice notice;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)

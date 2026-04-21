@@ -30,7 +30,9 @@ public class ProcurementPlan {
     @OneToMany(mappedBy = "plan", fetch = FetchType.LAZY)
     private List<PlanItem> planItems;
 
-    private Integer plan_year;
+    @Column(name = "plan_year")
+    private Integer planYear;
+
     private LocalDate publicationDate;
     private String sourceUrl;
 }

@@ -4,6 +4,23 @@ import com.procurewatchbackend.model.entity.Decision;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.List;
+
 @Repository
 public interface DecisionRepository extends JpaRepository<Decision, Long> {
+
+    List<Decision> findByInstitutionId(Long institutionId);
+
+    List<Decision> findBySupplierId(Long supplierId);
+
+    List<Decision> findByProcedureTypeIgnoreCase(String procedureType);
+
+    List<Decision> findBySubjectContainingIgnoreCase(String subject);
+
+    List<Decision> findByDecisionDate(LocalDate decisionDate);
+
+    List<Decision> findByNoticeId(Long noticeId);
+
+    void deleteByNoticeId(Long noticeId);
 }
