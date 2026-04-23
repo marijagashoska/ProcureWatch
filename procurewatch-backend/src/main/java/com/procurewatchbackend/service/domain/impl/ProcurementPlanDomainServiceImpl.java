@@ -10,6 +10,8 @@ import com.procurewatchbackend.repository.ProcurementPlanRepository;
 import com.procurewatchbackend.service.domain.ProcurementPlanDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,5 +117,11 @@ public class ProcurementPlanDomainServiceImpl implements ProcurementPlanDomainSe
 
     private void attachPlanItems(ProcurementPlan plan) {
         plan.setPlanItems(planItemRepository.findByPlanId(plan.getId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProcurementPlan> getAllPaginated(Pageable pageable) {
+        return procurementPlanRepository.findAll(pageable);
     }
 }

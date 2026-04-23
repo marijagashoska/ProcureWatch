@@ -13,6 +13,8 @@ import com.procurewatchbackend.repository.SupplierRepository;
 import com.procurewatchbackend.service.domain.RealizedContractDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -246,5 +248,11 @@ public class RealizedContractDomainServiceImpl implements RealizedContractDomain
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Contract not found with id: " + contractId
                 ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RealizedContract> getAllPaginated(Pageable pageable) {
+        return realizedContractRepository.findAll(pageable);
     }
 }

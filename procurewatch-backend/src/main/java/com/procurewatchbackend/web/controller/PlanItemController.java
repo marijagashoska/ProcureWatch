@@ -1,7 +1,9 @@
 package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreatePlanItemDto;
+import com.procurewatchbackend.dto.display.GetContractDto;
 import com.procurewatchbackend.dto.display.GetPlanItemDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditPlanItemDto;
 import com.procurewatchbackend.service.application.PlanItemApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -51,5 +53,17 @@ public class PlanItemController {
     @GetMapping("/getByPlanId/{planId}")
     public ResponseEntity<List<GetPlanItemDto>> getByPlanId(@PathVariable("planId") Long planId) {
         return ResponseEntity.ok(planItemApplicationService.getByPlanId(planId));
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetPlanItemDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                planItemApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

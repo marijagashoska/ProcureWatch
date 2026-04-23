@@ -2,6 +2,7 @@ package com.procurewatchbackend.service.domain.impl;
 
 import com.procurewatchbackend.dto.create.CreatePlanItemDto;
 import com.procurewatchbackend.dto.edit.EditPlanItemDto;
+import com.procurewatchbackend.model.entity.Institution;
 import com.procurewatchbackend.model.entity.PlanItem;
 import com.procurewatchbackend.model.entity.ProcurementPlan;
 import com.procurewatchbackend.repository.PlanItemRepository;
@@ -9,6 +10,8 @@ import com.procurewatchbackend.repository.ProcurementPlanRepository;
 import com.procurewatchbackend.service.domain.PlanItemDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,5 +100,11 @@ public class PlanItemDomainServiceImpl implements PlanItemDomainService {
     @Transactional(readOnly = true)
     public List<PlanItem> getByPlanId(Long planId) {
         return planItemRepository.findByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PlanItem> getAllPaginated(Pageable pageable) {
+        return planItemRepository.findAll(pageable);
     }
 }

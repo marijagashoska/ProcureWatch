@@ -1,7 +1,9 @@
 package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateRealizedContractDto;
+import com.procurewatchbackend.dto.display.GetProcurementPlanDto;
 import com.procurewatchbackend.dto.display.GetRealizedContractDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditRealizedContractDto;
 import com.procurewatchbackend.service.application.RealizedContractApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -172,5 +174,17 @@ public class RealizedContractController {
     @GetMapping("/allWherePaidValueIsLessThanOrEqualToRealizedValue")
     public ResponseEntity<List<GetRealizedContractDto>> allWherePaidValueIsLessThanOrEqualToRealizedValue() {
         return ResponseEntity.ok(realizedContractApplicationService.allWherePaidValueIsLessThanOrEqualToRealizedValue());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetRealizedContractDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                realizedContractApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

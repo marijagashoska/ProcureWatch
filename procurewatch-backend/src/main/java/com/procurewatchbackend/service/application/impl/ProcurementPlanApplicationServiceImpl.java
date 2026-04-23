@@ -3,12 +3,16 @@ package com.procurewatchbackend.service.application.impl;
 import com.procurewatchbackend.dto.create.CreateProcurementPlanDto;
 import com.procurewatchbackend.dto.display.GetPlanItemDto;
 import com.procurewatchbackend.dto.display.GetProcurementPlanDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditProcurementPlanDto;
 import com.procurewatchbackend.model.entity.PlanItem;
 import com.procurewatchbackend.model.entity.ProcurementPlan;
 import com.procurewatchbackend.service.application.ProcurementPlanApplicationService;
 import com.procurewatchbackend.service.domain.ProcurementPlanDomainService;
+import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,5 +102,20 @@ public class ProcurementPlanApplicationServiceImpl implements ProcurementPlanApp
                 item.getNotes(),
                 item.getSourceUrl()
         );
+    }
+
+    @Override
+    public PagedResponseDto<GetProcurementPlanDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageUtils.createPageable(page, size, sortBy, sortDir);
+
+        Page<GetProcurementPlanDto> result = procurementPlanDomainService.getAllPaginated(pageable)
+                .map(this::mapToGetDto);
+
+        return PageUtils.toPagedResponse(result, sortBy, sortDir);
     }
 }

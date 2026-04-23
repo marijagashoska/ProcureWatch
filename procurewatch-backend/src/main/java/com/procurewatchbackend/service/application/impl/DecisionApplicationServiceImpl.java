@@ -2,11 +2,16 @@ package com.procurewatchbackend.service.application.impl;
 
 import com.procurewatchbackend.dto.create.CreateDecisionDto;
 import com.procurewatchbackend.dto.display.GetDecisionDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditDecisionDto;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.service.application.DecisionApplicationService;
 import com.procurewatchbackend.service.domain.DecisionDomainService;
+import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,5 +105,20 @@ public class DecisionApplicationServiceImpl implements DecisionApplicationServic
                 .stream()
                 .map(this::mapToGetDto)
                 .toList();
+    }
+
+    @Override
+    public PagedResponseDto<GetDecisionDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageUtils.createPageable(page, size, sortBy, sortDir);
+
+        Page<GetDecisionDto> result = decisionDomainService.getAllPaginated(pageable)
+                .map(this::mapToGetDto);
+
+        return PageUtils.toPagedResponse(result, sortBy, sortDir);
     }
 }

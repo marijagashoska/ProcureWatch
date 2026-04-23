@@ -7,6 +7,8 @@ import com.procurewatchbackend.repository.InstitutionRepository;
 import com.procurewatchbackend.service.domain.InstitutionDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,5 +108,11 @@ public class InstitutionDomainServiceImpl implements InstitutionDomainService {
     @Transactional(readOnly = true)
     public List<Institution> getByNormalizedName(String normalizedName) {
         return institutionRepository.findByNormalizedNameContainingIgnoreCase(normalizedName);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Institution> getAllPaginated(Pageable pageable) {
+        return institutionRepository.findAll(pageable);
     }
 }

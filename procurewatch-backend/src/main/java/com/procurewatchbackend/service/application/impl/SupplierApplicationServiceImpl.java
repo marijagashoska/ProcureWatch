@@ -1,13 +1,18 @@
 package com.procurewatchbackend.service.application.impl;
 
 import com.procurewatchbackend.dto.create.CreateSupplierDto;
+import com.procurewatchbackend.dto.display.GetRealizedContractDto;
 import com.procurewatchbackend.dto.display.GetSupplierDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditSupplierDto;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.model.entity.Supplier;
 import com.procurewatchbackend.service.application.SupplierApplicationService;
 import com.procurewatchbackend.service.domain.SupplierDomainService;
+import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -111,5 +116,20 @@ public class SupplierApplicationServiceImpl implements SupplierApplicationServic
                 supplier.getSourceUrl(),
                 decisionIds
         );
+    }
+
+    @Override
+    public PagedResponseDto<GetSupplierDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageUtils.createPageable(page, size, sortBy, sortDir);
+
+        Page<GetSupplierDto> result = supplierDomainService.getAllPaginated(pageable)
+                .map(this::mapToGetDto);
+
+        return PageUtils.toPagedResponse(result, sortBy, sortDir);
     }
 }

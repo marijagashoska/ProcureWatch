@@ -1,7 +1,9 @@
 package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateNoticeDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.GetNoticeDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditNoticeDto;
 
 import java.util.List;
@@ -29,4 +31,11 @@ public interface NoticeApplicationService {
     List<GetNoticeDto> allThatHaveDecision();
 
     List<GetNoticeDto> allThatDontHaveDecision();
+
+    PagedResponseDto<GetNoticeDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 }

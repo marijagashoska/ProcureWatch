@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
@@ -21,6 +22,8 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     List<Notice> findByPlanItemIsNotNull();
 
     List<Notice> findByPlanItemIsNull();
+
+    Optional<Notice> findFirstByNoticeNumber(String noticeNumber);
 
     @Query("select distinct n from Notice n where n.decisions is not empty")
     List<Notice> findAllThatHaveDecision();

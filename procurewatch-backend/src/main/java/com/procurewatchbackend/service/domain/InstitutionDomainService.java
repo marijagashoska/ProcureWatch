@@ -3,6 +3,8 @@ package com.procurewatchbackend.service.domain;
 import com.procurewatchbackend.dto.create.CreateInstitutionDto;
 import com.procurewatchbackend.dto.edit.EditInstitutionDto;
 import com.procurewatchbackend.model.entity.Institution;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -27,4 +29,5 @@ public interface InstitutionDomainService {
     List<Institution> getByOfficialName(String officialName);
 
     List<Institution> getByNormalizedName(String normalizedName);
+    Page<Institution> getAllPaginated(Pageable pageable);
 }

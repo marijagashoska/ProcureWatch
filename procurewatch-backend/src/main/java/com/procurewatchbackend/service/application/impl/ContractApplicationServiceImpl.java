@@ -2,13 +2,22 @@ package com.procurewatchbackend.service.application.impl;
 
 import com.procurewatchbackend.dto.create.CreateContractDto;
 import com.procurewatchbackend.dto.display.GetContractDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.edit.EditContractDto;
 import com.procurewatchbackend.model.entity.Contract;
 import com.procurewatchbackend.service.application.ContractApplicationService;
 import com.procurewatchbackend.service.domain.ContractDomainService;
+import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.procurewatchbackend.dto.display.GetContractTableRowDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
+import com.procurewatchbackend.model.enums.RiskLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -201,5 +210,111 @@ public class ContractApplicationServiceImpl implements ContractApplicationServic
                 contract.getCurrency(),
                 contract.getSourceUrl()
         );
+    }
+
+    @Override
+    public PagedResponseDto<GetContractTableRowDto> search(
+            String searchText,
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String contractType,
+            String procedureType,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            BigDecimal minValue,
+            BigDecimal maxValue,
+            RiskLevel riskLevel,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(resolveDirection(sortDir), resolveSortProperty(sortBy))
+        );
+
+        Page<Contract> contractsPage = contractDomainService.search(
+                searchText,
+                noticeNumber,
+                institutionId,
+                supplierId,
+                contractType,
+                procedureType,
+                dateFrom,
+                dateTo,
+                minValue,
+                maxValue,
+                riskLevel,
+                pageable
+        );
+
+        return new PagedResponseDto<>(
+                contractsPage.getContent().stream()
+                        .map(this::mapToTableRowDto)
+                        .toList(),
+                contractsPage.getNumber(),
+                contractsPage.getSize(),
+                contractsPage.getTotalElements(),
+                contractsPage.getTotalPages(),
+                contractsPage.isFirst(),
+                contractsPage.isLast(),
+                sortBy,
+                sortDir
+        );
+    }
+
+    private GetContractTableRowDto mapToTableRowDto(Contract contract) {
+        return new GetContractTableRowDto(
+                contract.getId(),
+                contract.getNoticeNumber(),
+                contract.getInstitution() != null ? contract.getInstitution().getOfficialName() : null,
+                contract.getSupplier() != null ? contract.getSupplier().getOfficialName() : null,
+                contract.getSubject(),
+                contract.getContractType(),
+                contract.getProcedureType(),
+                contract.getContractValueVat(),
+                contract.getContractDate(),
+                contract.getRiskAssessment() != null ? contract.getRiskAssessment().getFinalRiskScore() : null,
+                contract.getRiskAssessment() != null ? contract.getRiskAssessment().getRiskLevel() : null
+        );
+    }
+
+    private Sort.Direction resolveDirection(String sortDir) {
+        return "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+    }
+
+    private String resolveSortProperty(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "contractDate";
+        }
+
+        return switch (sortBy) {
+            case "noticeNumber" -> "noticeNumber";
+            case "institutionName" -> "institution.officialName";
+            case "supplierName" -> "supplier.officialName";
+            case "subject" -> "subject";
+            case "value" -> "contractValueVat";
+            case "contractDate" -> "contractDate";
+            case "riskScore" -> "riskAssessment.finalRiskScore";
+            case "riskLevel" -> "riskAssessment.riskLevel";
+            default -> "contractDate";
+        };
+    }
+    @Override
+    public PagedResponseDto<GetContractDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageUtils.createPageable(page, size, sortBy, sortDir);
+
+        Page<GetContractDto> result = contractDomainService.getAllPaginated(pageable)
+                .map(this::mapToGetDto);
+
+        return PageUtils.toPagedResponse(result, sortBy, sortDir);
     }
 }

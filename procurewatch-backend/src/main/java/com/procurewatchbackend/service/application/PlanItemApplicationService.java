@@ -1,7 +1,9 @@
 package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreatePlanItemDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.GetPlanItemDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditPlanItemDto;
 
 import java.util.List;
@@ -19,4 +21,11 @@ public interface PlanItemApplicationService {
     GetPlanItemDto getById(Long id);
 
     List<GetPlanItemDto> getByPlanId(Long planId);
+
+    PagedResponseDto<GetPlanItemDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 }

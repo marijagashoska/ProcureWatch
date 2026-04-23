@@ -2,6 +2,7 @@ package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateInstitutionDto;
 import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditInstitutionDto;
 import com.procurewatchbackend.service.application.InstitutionApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -77,5 +78,17 @@ public class InstitutionController {
             @PathVariable("normalizedName") String normalizedName
     ) {
         return ResponseEntity.ok(institutionApplicationService.getByNormalizedName(normalizedName));
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetInstitutionDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                institutionApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

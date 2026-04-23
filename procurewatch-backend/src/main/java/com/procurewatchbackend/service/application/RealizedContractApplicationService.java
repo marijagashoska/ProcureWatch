@@ -1,7 +1,9 @@
 package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateRealizedContractDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.GetRealizedContractDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditRealizedContractDto;
 
 import java.math.BigDecimal;
@@ -55,4 +57,11 @@ public interface RealizedContractApplicationService {
     List<GetRealizedContractDto> allWherePaidValueExceedsRealizedValue();
 
     List<GetRealizedContractDto> allWherePaidValueIsLessThanOrEqualToRealizedValue();
+
+    PagedResponseDto<GetRealizedContractDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 }

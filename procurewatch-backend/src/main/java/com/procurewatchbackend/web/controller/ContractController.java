@@ -2,7 +2,11 @@ package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateContractDto;
 import com.procurewatchbackend.dto.display.GetContractDto;
+import com.procurewatchbackend.dto.display.GetContractTableRowDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditContractDto;
+import com.procurewatchbackend.model.enums.RiskLevel;
 import com.procurewatchbackend.service.application.ContractApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -153,5 +157,57 @@ public class ContractController {
     @GetMapping("/allWhereContractValueIsLessThanOrEqualToEstimatedValue")
     public ResponseEntity<List<GetContractDto>> allWhereContractValueIsLessThanOrEqualToEstimatedValue() {
         return ResponseEntity.ok(contractApplicationService.allWhereContractValueIsLessThanOrEqualToEstimatedValue());
+    }
+
+
+    @GetMapping("/search")
+    public ResponseEntity<PagedResponseDto<GetContractTableRowDto>> search(
+            @RequestParam(required = false) String searchText,
+            @RequestParam(required = false) String noticeNumber,
+            @RequestParam(required = false) Long institutionId,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) String contractType,
+            @RequestParam(required = false) String procedureType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) BigDecimal minValue,
+            @RequestParam(required = false) BigDecimal maxValue,
+            @RequestParam(required = false) RiskLevel riskLevel,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "contractDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                contractApplicationService.search(
+                        searchText,
+                        noticeNumber,
+                        institutionId,
+                        supplierId,
+                        contractType,
+                        procedureType,
+                        dateFrom,
+                        dateTo,
+                        minValue,
+                        maxValue,
+                        riskLevel,
+                        page,
+                        size,
+                        sortBy,
+                        sortDir
+                )
+        );
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetContractDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                contractApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

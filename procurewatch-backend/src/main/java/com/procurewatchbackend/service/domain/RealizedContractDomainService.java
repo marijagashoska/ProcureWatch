@@ -2,7 +2,10 @@ package com.procurewatchbackend.service.domain;
 
 import com.procurewatchbackend.dto.create.CreateRealizedContractDto;
 import com.procurewatchbackend.dto.edit.EditRealizedContractDto;
+import com.procurewatchbackend.model.entity.Institution;
 import com.procurewatchbackend.model.entity.RealizedContract;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -55,4 +58,5 @@ public interface RealizedContractDomainService {
     List<RealizedContract> allWherePaidValueExceedsRealizedValue();
 
     List<RealizedContract> allWherePaidValueIsLessThanOrEqualToRealizedValue();
+    Page<RealizedContract> getAllPaginated(Pageable pageable);
 }

@@ -1,7 +1,9 @@
 package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateNoticeDto;
+import com.procurewatchbackend.dto.display.GetContractDto;
 import com.procurewatchbackend.dto.display.GetNoticeDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditNoticeDto;
 import com.procurewatchbackend.service.application.NoticeApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +80,16 @@ public class NoticeController {
     @GetMapping("/AllThatDontHaveDecision")
     public ResponseEntity<List<GetNoticeDto>> allThatDontHaveDecision() {
         return ResponseEntity.ok(noticeApplicationService.allThatDontHaveDecision());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetNoticeDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(noticeApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

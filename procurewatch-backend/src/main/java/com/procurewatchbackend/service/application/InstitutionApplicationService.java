@@ -2,6 +2,7 @@ package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateInstitutionDto;
 import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditInstitutionDto;
 
 import java.util.List;
@@ -27,4 +28,12 @@ public interface InstitutionApplicationService {
     List<GetInstitutionDto> getByOfficialName(String officialName);
 
     List<GetInstitutionDto> getByNormalizedName(String normalizedName);
+
+    PagedResponseDto<GetInstitutionDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
+
 }

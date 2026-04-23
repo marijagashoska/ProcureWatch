@@ -33,6 +33,9 @@ public class Contract {
     @JoinColumn(name = "institution_id", nullable = false)
     private Institution institution;
 
+    @OneToOne(mappedBy = "contract", fetch = FetchType.LAZY)
+    private RiskAssessment riskAssessment;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;

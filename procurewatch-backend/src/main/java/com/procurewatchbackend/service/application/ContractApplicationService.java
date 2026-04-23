@@ -2,11 +2,15 @@ package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateContractDto;
 import com.procurewatchbackend.dto.display.GetContractDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.edit.EditContractDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import com.procurewatchbackend.dto.display.GetContractTableRowDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
+import com.procurewatchbackend.model.enums.RiskLevel;
 
 public interface ContractApplicationService {
 
@@ -51,4 +55,29 @@ public interface ContractApplicationService {
     List<GetContractDto> allWhereContractValueExceedsEstimatedValue();
 
     List<GetContractDto> allWhereContractValueIsLessThanOrEqualToEstimatedValue();
+
+    PagedResponseDto<GetContractTableRowDto> search(
+            String searchText,
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String contractType,
+            String procedureType,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            BigDecimal minValue,
+            BigDecimal maxValue,
+            RiskLevel riskLevel,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
+
+    PagedResponseDto<GetContractDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
 }

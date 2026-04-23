@@ -8,6 +8,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.procurewatchbackend.model.entity.Institution;
+import com.procurewatchbackend.model.enums.RiskLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface ContractDomainService {
 
     Contract add(CreateContractDto dto);
@@ -51,4 +56,21 @@ public interface ContractDomainService {
     List<Contract> allWhereContractValueExceedsEstimatedValue();
 
     List<Contract> allWhereContractValueIsLessThanOrEqualToEstimatedValue();
+
+    Page<Contract> search(
+            String searchText,
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String contractType,
+            String procedureType,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            BigDecimal minValue,
+            BigDecimal maxValue,
+            RiskLevel riskLevel,
+            Pageable pageable
+    );
+    Page<Contract> getAllPaginated(Pageable pageable);
+
 }

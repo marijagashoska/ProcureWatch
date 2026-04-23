@@ -2,12 +2,15 @@ package com.procurewatchbackend.service.domain.impl;
 
 import com.procurewatchbackend.dto.create.CreateSupplierDto;
 import com.procurewatchbackend.dto.edit.EditSupplierDto;
+import com.procurewatchbackend.model.entity.Institution;
 import com.procurewatchbackend.model.entity.Supplier;
 import com.procurewatchbackend.repository.DecisionRepository;
 import com.procurewatchbackend.repository.SupplierRepository;
 import com.procurewatchbackend.service.domain.SupplierDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,5 +142,10 @@ public class SupplierDomainServiceImpl implements SupplierDomainService {
 
     private void attachDecisions(Supplier supplier) {
         supplier.setDecisions(decisionRepository.findBySupplierId(supplier.getId()));
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Supplier> getAllPaginated(Pageable pageable) {
+        return supplierRepository.findAll(pageable);
     }
 }

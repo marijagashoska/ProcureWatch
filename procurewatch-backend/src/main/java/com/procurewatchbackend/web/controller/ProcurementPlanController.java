@@ -1,7 +1,9 @@
 package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateProcurementPlanDto;
+import com.procurewatchbackend.dto.display.GetPlanItemDto;
 import com.procurewatchbackend.dto.display.GetProcurementPlanDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditProcurementPlanDto;
 import com.procurewatchbackend.service.application.ProcurementPlanApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -58,5 +60,16 @@ public class ProcurementPlanController {
     @GetMapping("/getByYear/{year}")
     public ResponseEntity<List<GetProcurementPlanDto>> getByYear(@PathVariable("year") Integer year) {
         return ResponseEntity.ok(procurementPlanApplicationService.getByYear(year));
+    }
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetProcurementPlanDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                procurementPlanApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

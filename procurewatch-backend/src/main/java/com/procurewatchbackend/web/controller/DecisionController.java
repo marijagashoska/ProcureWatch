@@ -1,7 +1,9 @@
 package com.procurewatchbackend.web.controller;
 
 import com.procurewatchbackend.dto.create.CreateDecisionDto;
+import com.procurewatchbackend.dto.display.GetContractDto;
 import com.procurewatchbackend.dto.display.GetDecisionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditDecisionDto;
 import com.procurewatchbackend.service.application.DecisionApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +80,17 @@ public class DecisionController {
             @PathVariable("noticeId") Long noticeId
     ) {
         return ResponseEntity.ok(decisionApplicationService.getAllByNotice(noticeId));
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PagedResponseDto<GetDecisionDto>> getAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                decisionApplicationService.getAllPaginated(page, size, sortBy, sortDir)
+        );
     }
 }

@@ -13,6 +13,11 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.procurewatchbackend.model.enums.RiskLevel;
+import com.procurewatchbackend.repository.specification.ContractSpecifications;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -210,5 +215,44 @@ public class ContractDomainServiceImpl implements ContractDomainService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Supplier not found with id: " + supplierId
                 ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Contract> search(
+            String searchText,
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String contractType,
+            String procedureType,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            BigDecimal minValue,
+            BigDecimal maxValue,
+            RiskLevel riskLevel,
+            Pageable pageable
+    ) {
+        Specification<Contract> specification = ContractSpecifications.byFilters(
+                searchText,
+                noticeNumber,
+                institutionId,
+                supplierId,
+                contractType,
+                procedureType,
+                dateFrom,
+                dateTo,
+                minValue,
+                maxValue,
+                riskLevel
+        );
+
+        return contractRepository.findAll(specification, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Contract> getAllPaginated(Pageable pageable) {
+        return contractRepository.findAll(pageable);
     }
 }

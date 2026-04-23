@@ -2,11 +2,15 @@ package com.procurewatchbackend.service.application.impl;
 
 import com.procurewatchbackend.dto.create.CreateInstitutionDto;
 import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditInstitutionDto;
 import com.procurewatchbackend.model.entity.Institution;
 import com.procurewatchbackend.service.application.InstitutionApplicationService;
 import com.procurewatchbackend.service.domain.InstitutionDomainService;
+import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,6 +94,21 @@ public class InstitutionApplicationServiceImpl implements InstitutionApplication
                 .toList();
     }
 
+    @Override
+    public PagedResponseDto<GetInstitutionDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        Pageable pageable = PageUtils.createPageable(page, size, sortBy, sortDir);
+
+        Page<GetInstitutionDto> result = institutionDomainService.getAllPaginated(pageable)
+                .map(this::mapToGetDto);
+
+        return PageUtils.toPagedResponse(result, sortBy, sortDir);
+    }
+
     private GetInstitutionDto mapToGetDto(Institution institution) {
         return new GetInstitutionDto(
                 institution.getId(),
@@ -103,4 +122,8 @@ public class InstitutionApplicationServiceImpl implements InstitutionApplication
                 institution.getSourceUrl()
         );
     }
+
+
+
+
 }

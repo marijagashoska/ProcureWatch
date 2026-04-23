@@ -1,7 +1,9 @@
 package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateSupplierDto;
+import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.GetSupplierDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditSupplierDto;
 
 import java.util.List;
@@ -29,4 +31,12 @@ public interface SupplierApplicationService {
     List<GetSupplierDto> allThatHaveDecision();
 
     List<GetSupplierDto> allThatDontHaveDecision();
+
+    PagedResponseDto<GetSupplierDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
+
 }

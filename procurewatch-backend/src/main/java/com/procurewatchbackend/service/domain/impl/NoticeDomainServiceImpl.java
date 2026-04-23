@@ -12,6 +12,8 @@ import com.procurewatchbackend.repository.PlanItemRepository;
 import com.procurewatchbackend.service.domain.NoticeDomainService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -171,5 +173,10 @@ public class NoticeDomainServiceImpl implements NoticeDomainService {
 
     private void attachDecisions(Notice notice) {
         notice.setDecisions(decisionRepository.findByNoticeId(notice.getId()));
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Notice> getAllPaginated(Pageable pageable) {
+        return noticeRepository.findAll(pageable);
     }
 }

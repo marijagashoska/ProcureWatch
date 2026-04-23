@@ -2,6 +2,7 @@ package com.procurewatchbackend.repository;
 
 import com.procurewatchbackend.model.entity.Contract;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -10,7 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface ContractRepository extends JpaRepository<Contract, Long> {
+public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSpecificationExecutor<Contract> {
 
     List<Contract> findByInstitutionId(Long institutionId);
 
@@ -63,4 +64,19 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
              and c.contractValueVat <= c.estimatedValueVat
            """)
     List<Contract> findAllWhereContractValueIsLessThanOrEqualToEstimatedValue();
+
+    long countByInstitutionIdAndSupplierIdAndContractDateBetween(
+            Long institutionId,
+            Long supplierId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
+
+    long countByInstitutionIdAndSupplierIdAndPublicationDateBetween(
+            Long institutionId,
+            Long supplierId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
+
 }
