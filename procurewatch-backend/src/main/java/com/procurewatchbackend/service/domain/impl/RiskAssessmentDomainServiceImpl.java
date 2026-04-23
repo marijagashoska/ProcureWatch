@@ -13,6 +13,7 @@ import com.procurewatchbackend.repository.ContractRepository;
 import com.procurewatchbackend.repository.NoticeRepository;
 import com.procurewatchbackend.repository.RiskAssessmentRepository;
 import com.procurewatchbackend.service.domain.RiskAssessmentDomainService;
+import com.procurewatchbackend.service.domain.TextSimilarityService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
     private final ContractRepository contractRepository;
     private final NoticeRepository noticeRepository;
     private final RiskAssessmentRepository riskAssessmentRepository;
+    private final TextSimilarityService textSimilarityService;
 
     @Override
     public RiskAssessment evaluateContract(Long contractId) {
@@ -70,11 +72,16 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
                 .min(MAX_RULE_SCORE)
                 .setScale(2, RoundingMode.HALF_UP);
 
+        double similarityScore = textSimilarityService.calculateContractSimilarityScore(contractId);
+        BigDecimal similarityScoreBD = new BigDecimal(similarityScore)
+                .setScale(2, RoundingMode.HALF_UP);
+
         RiskAssessment assessment = riskAssessmentRepository.findByContractId(contractId)
                 .orElseGet(() -> RiskAssessment.builder().contract(contract).build());
 
         assessment.getTriggeredFlags().clear();
         assessment.setRuleScore(ruleScore);
+        assessment.setSimilarityScore(similarityScoreBD);
 
         //NEEDS TO BE MODIFIED AS WE GET OTHER SCORES AS WELL
         assessment.setFinalRiskScore(ruleScore);
