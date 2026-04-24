@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
 
     Optional<Supplier> findByExternalId(String externalId);
+    Optional<Supplier> findFirstByNormalizedName(String normalizedName);
 
     List<Supplier> findByOfficialNameContainingIgnoreCase(String officialName);
 

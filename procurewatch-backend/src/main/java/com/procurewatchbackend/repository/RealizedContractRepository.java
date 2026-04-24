@@ -70,4 +70,14 @@ public interface RealizedContractRepository extends JpaRepository<RealizedContra
              and rc.paidValueVat <= rc.realizedValueVat
            """)
     List<RealizedContract> findAllWherePaidValueIsLessThanOrEqualToRealizedValue();
+
+    Optional<RealizedContract> findFirstByNoticeNumber(String noticeNumber);
+
+    Optional<RealizedContract> findFirstByNoticeNumberAndInstitutionIdAndSupplierId(
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId
+    );
+
+
 }

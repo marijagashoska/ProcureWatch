@@ -5,8 +5,10 @@ import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.GetSupplierDto;
 import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditSupplierDto;
+import com.procurewatchbackend.model.entity.Supplier;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SupplierApplicationService {
 

@@ -30,4 +30,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     @Query("select distinct n from Notice n where n.decisions is empty")
     List<Notice> findAllThatDontHaveDecision();
+
+
+
 }

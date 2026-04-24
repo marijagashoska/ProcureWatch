@@ -26,8 +26,8 @@ public class Decision  {
     @JoinColumn(name = "notice_id", nullable = false)
     private Notice notice;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "contract_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id")
     private Contract contract;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

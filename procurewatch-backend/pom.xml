@@ -77,7 +77,11 @@
             <artifactId>lucene-core</artifactId>
             <version>9.7.0</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.59.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analysis-common</artifactId>

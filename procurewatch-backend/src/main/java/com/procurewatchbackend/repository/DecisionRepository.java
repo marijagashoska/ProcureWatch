@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DecisionRepository extends JpaRepository<Decision, Long> {
@@ -23,4 +24,11 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
     List<Decision> findByNoticeId(Long noticeId);
 
     void deleteByNoticeId(Long noticeId);
+    Optional<Decision> findFirstByNoticeNumber(String noticeNumber);
+
+    Optional<Decision> findFirstByNoticeNumberAndSupplierIdAndDecisionDate(
+            String noticeNumber,
+            Long supplierId,
+            LocalDate decisionDate
+    );
 }

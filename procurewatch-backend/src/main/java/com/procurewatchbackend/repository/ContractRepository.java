@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSpecificationExecutor<Contract> {
@@ -79,4 +80,12 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
             LocalDate endDate
     );
 
+    Optional<Contract> findFirstByNoticeNumber(String noticeNumber);
+
+    Optional<Contract> findFirstByNoticeNumberAndInstitutionIdAndSupplierIdAndSubjectContainingIgnoreCase(
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String subject
+    );
 }
