@@ -120,6 +120,47 @@ public class ENabavkiBrowserClient {
         return planItemRows;
     }
 
+
+    private void addAnnualPlanParentAndInstitutionFields(
+            Map<String, String> merged,
+            ScrapedRow annualPlanRow,
+            Map<String, String> institutionDetails,
+            String pageUrl
+    ) {
+        String institutionName = firstText(
+                institutionDetails.get("_institutionOfficialName"),
+                institutionDetails.get("Назив на договорниот орган"),
+                annualPlanRow.get(
+                        "Назив на договорниот орган",
+                        "Договорен орган",
+                        "Институција",
+                        "Contracting authority",
+                        "Institution",
+                        "institution"
+                )
+        );
+
+        putIfText(merged, "_parentInstitution", institutionName);
+        putIfText(merged, "_parentYear", annualPlanRow.get("Година", "План за година", "year"));
+        putIfText(merged, "_parentPublicationDate", annualPlanRow.get("Датум на објава", "Датум на објавување", "publicationDate"));
+        putIfText(merged, "_parentSourceUrl", pageUrl);
+
+        putIfText(merged, "_institutionOfficialName", institutionDetails.get("_institutionOfficialName"));
+        putIfText(merged, "_institutionAddress", institutionDetails.get("_institutionAddress"));
+        putIfText(merged, "_institutionCity", institutionDetails.get("_institutionCity"));
+        putIfText(merged, "_institutionPostalCode", institutionDetails.get("_institutionPostalCode"));
+        putIfText(merged, "_institutionWebsite", institutionDetails.get("_institutionWebsite"));
+        putIfText(merged, "_institutionContact", institutionDetails.get("_institutionContact"));
+        putIfText(merged, "_institutionCategory", institutionDetails.get("_institutionCategory"));
+
+        putIfText(merged, "Назив на договорниот орган", institutionDetails.get("Назив на договорниот орган"));
+        putIfText(merged, "Адреса", institutionDetails.get("Адреса"));
+        putIfText(merged, "Град", institutionDetails.get("Град"));
+        putIfText(merged, "Поштенски код", institutionDetails.get("Поштенски код"));
+        putIfText(merged, "Поштенски број", institutionDetails.get("Поштенски број"));
+        putIfText(merged, "Категорија", institutionDetails.get("Категорија"));
+    }
+
     private List<ScrapedRow> scrapeAnnualPlanDetailPage(String url, ScrapedRow annualPlanRow) {
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(
@@ -134,47 +175,33 @@ public class ENabavkiBrowserClient {
             expandAllSections(page);
 
             Map<String, String> institutionDetails = readInstitutionBlock(page);
-
-            // IMPORTANT: use plan-item-specific parser, not generic readRowsFromTables(page)
             List<ScrapedRow> itemRows = readAnnualPlanItemRows(page);
 
             List<ScrapedRow> result = new ArrayList<>();
 
+            if (itemRows.isEmpty()) {
+                Map<String, String> merged = new LinkedHashMap<>();
+                addAnnualPlanParentAndInstitutionFields(
+                        merged,
+                        annualPlanRow,
+                        institutionDetails,
+                        page.url()
+                );
+
+                merged.put("_metadataOnly", "true");
+                result.add(new ScrapedRow(merged, page.url()));
+                return result;
+            }
+
             for (ScrapedRow itemRow : itemRows) {
                 Map<String, String> merged = new LinkedHashMap<>(itemRow.fields());
 
-                String institutionName = firstText(
-                        institutionDetails.get("_institutionOfficialName"),
-                        institutionDetails.get("Назив на договорниот орган"),
-                        annualPlanRow.get(
-                                "Назив на договорниот орган",
-                                "Договорен орган",
-                                "Институција",
-                                "Contracting authority",
-                                "Institution",
-                                "institution"
-                        )
+                addAnnualPlanParentAndInstitutionFields(
+                        merged,
+                        annualPlanRow,
+                        institutionDetails,
+                        page.url()
                 );
-
-                putIfText(merged, "_parentInstitution", institutionName);
-                putIfText(merged, "_parentYear", annualPlanRow.get("Година", "План за година", "year"));
-                putIfText(merged, "_parentPublicationDate", annualPlanRow.get("Датум на објава", "Датум на објавување", "publicationDate"));
-                putIfText(merged, "_parentSourceUrl", page.url());
-
-                putIfText(merged, "_institutionOfficialName", institutionDetails.get("_institutionOfficialName"));
-                putIfText(merged, "_institutionAddress", institutionDetails.get("_institutionAddress"));
-                putIfText(merged, "_institutionCity", institutionDetails.get("_institutionCity"));
-                putIfText(merged, "_institutionPostalCode", institutionDetails.get("_institutionPostalCode"));
-                putIfText(merged, "_institutionWebsite", institutionDetails.get("_institutionWebsite"));
-                putIfText(merged, "_institutionContact", institutionDetails.get("_institutionContact"));
-                putIfText(merged, "_institutionCategory", institutionDetails.get("_institutionCategory"));
-
-                putIfText(merged, "Назив на договорниот орган", institutionDetails.get("Назив на договорниот орган"));
-                putIfText(merged, "Адреса", institutionDetails.get("Адреса"));
-                putIfText(merged, "Град", institutionDetails.get("Град"));
-                putIfText(merged, "Поштенски код", institutionDetails.get("Поштенски код"));
-                putIfText(merged, "Поштенски број", institutionDetails.get("Поштенски број"));
-                putIfText(merged, "Категорија", institutionDetails.get("Категорија"));
 
                 result.add(new ScrapedRow(merged, page.url()));
             }
@@ -969,10 +996,7 @@ public class ENabavkiBrowserClient {
           const put = (key, value) => {
             key = clean(key);
             value = clean(value);
-
-            if (key && value) {
-              out[key] = value;
-            }
+            if (key && value) out[key] = value;
           };
 
           const removePrefix = (line, codeRegex, labelRegex) => {
@@ -1002,8 +1026,14 @@ public class ENabavkiBrowserClient {
               }
 
               if (i + 1 < lines.length) {
-                return clean(lines[i + 1]);
+                const next = lines[i + 1];
+
+                if (!/^(?:I|1)\\.\\d/i.test(next) && !/^ДЕЛ\\s+/i.test(next) && !/^II\\./i.test(next)) {
+                  return clean(next);
+                }
               }
+
+              return null;
             }
 
             return null;
@@ -1125,6 +1155,8 @@ public class ENabavkiBrowserClient {
 
         return fields;
     }
+
+
     @SuppressWarnings("unchecked")
     private List<ScrapedRow> readAnnualPlanItemRows(Page page) {
         Object result = page.evaluate("""
@@ -1192,6 +1224,12 @@ public class ENabavkiBrowserClient {
           for (let tableIndex = 0; tableIndex < tables.length; tableIndex++) {
             const table = tables[tableIndex];
 
+            const tableText = clean(table.innerText || table.textContent || '');
+
+            if (!tableText || tableText.includes('Не се пронајдени соодветни записи')) {
+              continue;
+            }
+
             const headerCells = Array.from(table.querySelectorAll('thead th'));
 
             let headers = headerCells.map(th => clean(th.innerText || th.textContent));
@@ -1199,11 +1237,6 @@ public class ENabavkiBrowserClient {
             if (headers.length === 0) {
               const firstRowTh = Array.from(table.querySelectorAll('tr:first-child th'));
               headers = firstRowTh.map(th => clean(th.innerText || th.textContent));
-            }
-
-            if (headers.length === 0) {
-              const firstRowCells = Array.from(table.querySelectorAll('tr:first-child td'));
-              headers = firstRowCells.map(td => clean(td.innerText || td.textContent));
             }
 
             if (!tableIsPlanItemsTable(headers)) {
@@ -1279,7 +1312,5 @@ public class ENabavkiBrowserClient {
 
         return rows;
     }
-
-
 
 }

@@ -155,9 +155,7 @@ public class ENabavkiFullImportService {
                     institutionName(row)
             );
 
-            String subject = subject(row);
-
-            if (!hasText(institutionName) || !hasText(subject)) {
+            if (!hasText(institutionName)) {
                 result.setSkippedRows(result.getSkippedRows() + 1);
                 continue;
             }
@@ -179,13 +177,10 @@ public class ENabavkiFullImportService {
 
             /*
              * IMPORTANT:
-             * This row now contains:
-             * _institutionOfficialName
-             * _institutionCity
-             * _institutionPostalCode
-             * _institutionCategory
-             *
-             * So this call enriches Institution before creating/finding the plan.
+             * Enrich/create institution BEFORE checking subject.
+             * Some annual-plan detail pages have institution data but no item rows.
+             * Those rows come as _metadataOnly=true, and we still want to save:
+             * city, postalCode, category, sourceUrl, and plan.
              */
             Institution institution = getOrCreateInstitution(row, institutionName, result);
 
@@ -199,6 +194,12 @@ public class ENabavkiFullImportService {
                                     .sourceUrl(firstText(row.get("_parentSourceUrl"), row.sourceUrl()))
                                     .build()
                     ));
+
+            String subject = subject(row);
+
+            if ("true".equalsIgnoreCase(row.get("_metadataOnly")) || !hasText(subject)) {
+                continue;
+            }
 
             String cpvCode = cleanScrapedText(row.get(
                     "ЗПЈН",
@@ -229,6 +230,7 @@ public class ENabavkiFullImportService {
                     "Месец",
                     "expectedStartMonth"
             )));
+
             item.setHasNotice(parseBoolean(row.get(
                     "_hasNotice",
                     "Оглас",
@@ -236,6 +238,7 @@ public class ENabavkiFullImportService {
                     "Дали има оглас",
                     "hasNotice"
             )));
+
             item.setNotes(cleanScrapedText(row.get("Забелешки", "notes")));
             item.setSourceUrl(firstText(row.sourceUrl(), row.get("_parentSourceUrl")));
 
@@ -519,10 +522,6 @@ public class ENabavkiFullImportService {
                 officialName
         ));
 
-        if (!hasText(officialName)) {
-            throw new IllegalArgumentException("Institution officialName is missing for row: " + row.sourceUrl());
-        }
-
         String normalized = TextNormalizer.normalizeName(officialName);
 
         Optional<Institution> existingOpt = institutionRepository.findFirstByNormalizedName(normalized);
@@ -533,26 +532,28 @@ public class ENabavkiFullImportService {
             boolean changed = false;
 
             changed |= fillIfBlank(existing::getExternalId, existing::setExternalId,
-                    cleanScrapedText(row.get("externalId", "ID", "Шифра")));
+                    row.get("externalId", "ID", "Шифра"));
 
             changed |= fillIfBlank(existing::getOfficialName, existing::setOfficialName,
                     TextNormalizer.safe(officialName));
 
             changed |= fillIfBlank(existing::getInstitutionType, existing::setInstitutionType,
-                    cleanScrapedText(row.get("Тип на институција", "institutionType")));
+                    row.get("Тип на институција", "institutionType"));
 
             changed |= fillIfBlank(existing::getCity, existing::setCity,
-                    cleanScrapedText(row.get("_institutionCity", "Град", "city")));
+                    row.get("_institutionCity", "Град", "city"));
 
             changed |= fillIfBlank(existing::getPostalCode, existing::setPostalCode,
-                    cleanScrapedText(row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode")));
+                    row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode"));
 
             changed |= fillIfBlank(existing::getCategory, existing::setCategory,
-                    cleanScrapedText(row.get("_institutionCategory", "Категорија", "category")));
+                    row.get("_institutionCategory", "Категорија", "category"));
 
             String betterSourceUrl = firstText(row.get("_parentSourceUrl"), row.sourceUrl());
 
-            if (hasText(betterSourceUrl) && !betterSourceUrl.equals(existing.getSourceUrl())) {
+            if (hasText(betterSourceUrl)
+                    && betterSourceUrl.contains("dossie-annual-plan")
+                    && !betterSourceUrl.equals(existing.getSourceUrl())) {
                 existing.setSourceUrl(betterSourceUrl);
                 changed = true;
             }
@@ -565,13 +566,13 @@ public class ENabavkiFullImportService {
         }
 
         Institution institution = Institution.builder()
-                .externalId(cleanScrapedText(row.get("externalId", "ID", "Шифра")))
+                .externalId(row.get("externalId", "ID", "Шифра"))
                 .officialName(TextNormalizer.safe(officialName))
                 .normalizedName(normalized)
-                .institutionType(cleanScrapedText(row.get("Тип на институција", "institutionType")))
-                .city(cleanScrapedText(row.get("_institutionCity", "Град", "city")))
-                .postalCode(cleanScrapedText(row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode")))
-                .category(cleanScrapedText(row.get("_institutionCategory", "Категорија", "category")))
+                .institutionType(row.get("Тип на институција", "institutionType"))
+                .city(row.get("_institutionCity", "Град", "city"))
+                .postalCode(row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode"))
+                .category(row.get("_institutionCategory", "Категорија", "category"))
                 .sourceUrl(firstText(row.get("_parentSourceUrl"), row.sourceUrl()))
                 .build();
 
