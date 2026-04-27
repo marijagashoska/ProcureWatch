@@ -24,7 +24,10 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
     List<Decision> findByNoticeId(Long noticeId);
 
     void deleteByNoticeId(Long noticeId);
+
     Optional<Decision> findFirstByNoticeNumber(String noticeNumber);
+
+    Optional<Decision> findFirstByNoticeNumberIgnoreCase(String noticeNumber);
 
     Optional<Decision> findFirstByNoticeNumberAndSupplierIdAndDecisionDate(
             String noticeNumber,

@@ -38,21 +38,21 @@ public class Decision  {
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
-    //    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String noticeNumber;
 
     //    @Column(nullable = false)
     private LocalDate decisionDate;
 
-    //    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
-    //    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String decisionText;
 
-    //    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String procedureType;
 
-    //    @Column(nullable = false, length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

@@ -1,5 +1,6 @@
 package com.procurewatchbackend.service.domain.impl;
 
+import com.procurewatchbackend.ai.AnomalyDetectionService;
 import com.procurewatchbackend.model.entity.Contract;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.model.entity.Notice;
@@ -18,7 +19,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.procurewatchbackend.service.domain.FinalRiskScoringService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -41,6 +42,9 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
     private final NoticeRepository noticeRepository;
     private final RiskAssessmentRepository riskAssessmentRepository;
     private final TextSimilarityService textSimilarityService;
+    private final FinalRiskScoringService finalRiskScoringService;
+    private final AnomalyDetectionService anomalyDetectionService;
+
 
     @Override
     public RiskAssessment evaluateContract(Long contractId) {
@@ -72,20 +76,22 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
                 .min(MAX_RULE_SCORE)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        double similarityScore = textSimilarityService.calculateContractSimilarityScore(contractId);
-        BigDecimal similarityScoreBD = new BigDecimal(similarityScore)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal similarityScoreBD = calculateSimilarityScore(contractId);
+        BigDecimal anomalyScoreBD = calculateAnomalyScore(contract);
 
         RiskAssessment assessment = riskAssessmentRepository.findByContractId(contractId)
                 .orElseGet(() -> RiskAssessment.builder().contract(contract).build());
 
         assessment.getTriggeredFlags().clear();
+
         assessment.setRuleScore(ruleScore);
         assessment.setSimilarityScore(similarityScoreBD);
+        assessment.setAnomalyScore(anomalyScoreBD);
 
-        //NEEDS TO BE MODIFIED AS WE GET OTHER SCORES AS WELL
-        assessment.setFinalRiskScore(ruleScore);
-        assessment.setRiskLevel(resolveRiskLevel(ruleScore));
+// You do not have a real cluster module, so keep this null.
+        assessment.setClusterScore(null);
+
+
         assessment.setModelVersion(MODEL_VERSION);
         assessment.setEvaluatedAt(LocalDateTime.now());
 
@@ -104,9 +110,13 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
             );
         }
 
+        finalRiskScoringService.calculateAndApply(assessment);
+
         RiskAssessment saved = riskAssessmentRepository.save(assessment);
-        saved.setPriorityRank(calculatePriorityRank(saved));
-        return riskAssessmentRepository.save(saved);
+
+        finalRiskScoringService.recalculatePriorityRanks();
+
+        return riskAssessmentRepository.findById(saved.getId()).orElse(saved);
     }
 
     @Override
@@ -132,10 +142,47 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
     }
 
     private Optional<Notice> resolveNotice(Contract contract) {
-        if (contract.getNoticeNumber() == null || contract.getNoticeNumber().isBlank()) {
+        String normalizedContractNoticeNumber = normalizeNoticeNumber(contract.getNoticeNumber());
+
+        if (!hasText(normalizedContractNoticeNumber)) {
             return Optional.empty();
         }
-        return noticeRepository.findFirstByNoticeNumber(contract.getNoticeNumber());
+
+        Optional<Notice> exactMatch = noticeRepository.findFirstByNoticeNumber(normalizedContractNoticeNumber);
+
+        if (exactMatch.isPresent()) {
+            return exactMatch;
+        }
+
+        return noticeRepository.findAll()
+                .stream()
+                .filter(notice -> normalizedContractNoticeNumber.equals(
+                        normalizeNoticeNumber(notice.getNoticeNumber())
+                ))
+                .findFirst();
+    }
+
+    private String normalizeNoticeNumber(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value
+                .replace('\u00A0', ' ')
+                .trim();
+
+        normalized = normalized.replaceAll(
+                "(?iu)(број\\s*на\\s*оглас|бр\\.?\\s*на\\s*оглас|оглас\\s*бр\\.?|notice\\s*number)\\s*[:：-]?\\s*",
+                ""
+        );
+
+        normalized = normalized.replaceAll("\\s+", "");
+
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private FeatureSnapshot buildFeatureSnapshot(
@@ -451,5 +498,40 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
             String measuredValue,
             String thresholdValue
     ) {
+    }
+
+    private BigDecimal calculateSimilarityScore(Long contractId) {
+        double rawScore = textSimilarityService.calculateContractSimilarityScore(contractId);
+
+        return normalizeRawScoreToPercentage(rawScore);
+    }
+
+    private BigDecimal calculateAnomalyScore(Contract contract) {
+        try {
+            double rawScore = anomalyDetectionService.calculateAnomaly(contract);
+
+            return normalizeRawScoreToPercentage(rawScore);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private BigDecimal normalizeRawScoreToPercentage(double rawScore) {
+        if (Double.isNaN(rawScore) || Double.isInfinite(rawScore)) {
+            return null;
+        }
+
+        BigDecimal score = BigDecimal.valueOf(rawScore);
+
+        // Your similarity and anomaly modules return 0.00 - 1.00.
+        // RiskAssessment stores scores as 0.00 - 100.00.
+        if (score.compareTo(BigDecimal.ONE) <= 0) {
+            score = score.multiply(new BigDecimal("100.00"));
+        }
+
+        return score
+                .max(BigDecimal.ZERO)
+                .min(MAX_RULE_SCORE)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

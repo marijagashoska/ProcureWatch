@@ -51,16 +51,61 @@ public class ImportController {
             default -> throw new IllegalArgumentException("Unknown source: " + source);
         };
 
-        List<ScrapedRow> rows = browserClient.scrapeList(route, maxPages);
-
-        return rows.stream()
+        return browserClient.scrapeList(route, maxPages)
+                .stream()
                 .limit(limit)
-                .map(row -> {
-                    Map<String, Object> output = new LinkedHashMap<>();
-                    output.put("sourceUrl", row.sourceUrl());
-                    output.put("fields", row.fields());
-                    return output;
-                })
+                .map(this::debugRow)
                 .toList();
+    }
+
+    @GetMapping("/debug/url")
+    public List<Map<String, Object>> debugScrapeDirectUrl(
+            @RequestParam String url,
+            @RequestParam(defaultValue = "1") int maxPages,
+            @RequestParam(defaultValue = "100") int limit
+    ) {
+        return browserClient.scrapeList(url, maxPages)
+                .stream()
+                .limit(limit)
+                .map(this::debugRow)
+                .toList();
+    }
+
+    @GetMapping("/debug/plan-items")
+    public Map<String, Object> debugScrapePlanItems(
+            @RequestParam(defaultValue = "1") int maxPages,
+            @RequestParam(defaultValue = "25") int maxAnnualPlanDetails,
+            @RequestParam(defaultValue = "200") int limit
+    ) {
+        List<ScrapedRow> annualPlanRows = browserClient.scrapeList("/annual-plans", maxPages);
+
+        List<ScrapedRow> planItemRows =
+                browserClient.scrapeAnnualPlanItemDetails(annualPlanRows, maxAnnualPlanDetails);
+
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("annualPlansScraped", annualPlanRows.size());
+        output.put("planItemsScraped", planItemRows.size());
+        output.put("maxPages", maxPages);
+        output.put("maxAnnualPlanDetails", maxAnnualPlanDetails);
+        output.put("limit", limit);
+
+        output.put("annualPlans", annualPlanRows.stream()
+                .limit(Math.min(limit, 20))
+                .map(this::debugRow)
+                .toList());
+
+        output.put("planItems", planItemRows.stream()
+                .limit(limit)
+                .map(this::debugRow)
+                .toList());
+
+        return output;
+    }
+
+    private Map<String, Object> debugRow(ScrapedRow row) {
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("sourceUrl", row.sourceUrl());
+        output.put("fields", row.fields());
+        return output;
     }
 }

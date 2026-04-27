@@ -21,20 +21,24 @@ public class Institution  {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-//    @Column(unique = true)
+    @Column(columnDefinition = "TEXT")
     private String externalId;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String officialName;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String normalizedName;
 
+    @Column(columnDefinition = "TEXT")
     private String institutionType;
+    @Column(columnDefinition = "TEXT")
     private String city;
+    @Column(columnDefinition = "TEXT")
     private String postalCode;
+    @Column(columnDefinition = "TEXT")
     private String category;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

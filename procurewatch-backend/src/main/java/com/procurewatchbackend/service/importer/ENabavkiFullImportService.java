@@ -4,6 +4,7 @@ import com.procurewatchbackend.dto.importer.ImportResultDto;
 import com.procurewatchbackend.model.entity.*;
 import com.procurewatchbackend.repository.*;
 import com.procurewatchbackend.scraper.ENabavkiBrowserClient;
+import com.procurewatchbackend.scraper.MojibakeFixer;
 import com.procurewatchbackend.scraper.ScrapedRow;
 import com.procurewatchbackend.service.domain.RiskAssessmentDomainService;
 import com.procurewatchbackend.util.TextNormalizer;
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -54,12 +56,40 @@ public class ENabavkiFullImportService {
 
         List<ScrapedRow> planItemRows =
                 browserClient.scrapeAnnualPlanItemDetails(annualPlanRows, maxAnnualPlanDetails);
+
         importPlanItems(planItemRows, fromYear, toYear, result);
 
-        importNotices(browserClient.scrapeList(NOTICES_ROUTE, maxPages), fromYear, toYear, result);
-        importDecisions(browserClient.scrapeList(DECISIONS_ROUTE, maxPages), fromYear, toYear, result);
-        importContracts(browserClient.scrapeList(CONTRACTS_ROUTE, maxPages), fromYear, toYear, result);
-        importRealizedContracts(browserClient.scrapeList(REALIZED_CONTRACTS_ROUTE, maxPages), fromYear, toYear, result);
+        int maxDetails = maxAnnualPlanDetails;
+
+        importNotices(
+                browserClient.scrapeListWithDetails(NOTICES_ROUTE, maxPages, maxDetails),
+                fromYear,
+                toYear,
+                result
+        );
+
+        importDecisions(
+                browserClient.scrapeListWithDetails(DECISIONS_ROUTE, maxPages, maxDetails),
+                fromYear,
+                toYear,
+                result
+        );
+
+        importContracts(
+                browserClient.scrapeListWithDetails(CONTRACTS_ROUTE, maxPages, maxDetails),
+                fromYear,
+                toYear,
+                result
+        );
+
+        importRealizedContracts(
+                browserClient.scrapeListWithDetails(REALIZED_CONTRACTS_ROUTE, maxPages, maxDetails),
+                fromYear,
+                toYear,
+                result
+        );
+
+        linkProcurementLifecycle();
 
         if (evaluateRisk) {
             result.setRiskAssessmentsGenerated(riskAssessmentDomainService.evaluateAllContracts().size());
@@ -85,7 +115,7 @@ public class ENabavkiFullImportService {
             LocalDate publicationDate = publicationDate(row);
 
             Integer year = firstNonNull(
-                    ValueParser.parseYear(row.get("Година", "План за година", "year")),
+                    ValueParser.parseYear(cleanScrapedText(row.get("Година", "План за година", "year"))),
                     publicationDate == null ? null : publicationDate.getYear()
             );
 
@@ -119,7 +149,12 @@ public class ENabavkiFullImportService {
             ImportResultDto result
     ) {
         for (ScrapedRow row : rows) {
-            String institutionName = firstText(row.get("_parentInstitution"), institutionName(row));
+            String institutionName = firstText(
+                    cleanScrapedText(row.get("_institutionOfficialName")),
+                    cleanScrapedText(row.get("_parentInstitution")),
+                    institutionName(row)
+            );
+
             String subject = subject(row);
 
             if (!hasText(institutionName) || !hasText(subject)) {
@@ -129,12 +164,12 @@ public class ENabavkiFullImportService {
 
             LocalDate publicationDate = firstNonNull(
                     publicationDate(row),
-                    ValueParser.parseDate(row.get("_parentPublicationDate"))
+                    ValueParser.parseDate(cleanScrapedText(row.get("_parentPublicationDate")))
             );
 
             Integer year = firstNonNull(
-                    ValueParser.parseYear(row.get("_parentYear")),
-                    ValueParser.parseYear(row.get("Година", "year")),
+                    ValueParser.parseYear(cleanScrapedText(row.get("_parentYear"))),
+                    ValueParser.parseYear(cleanScrapedText(row.get("Година", "year"))),
                     publicationDate == null ? null : publicationDate.getYear()
             );
 
@@ -142,6 +177,16 @@ public class ENabavkiFullImportService {
                 continue;
             }
 
+            /*
+             * IMPORTANT:
+             * This row now contains:
+             * _institutionOfficialName
+             * _institutionCity
+             * _institutionPostalCode
+             * _institutionCategory
+             *
+             * So this call enriches Institution before creating/finding the plan.
+             */
             Institution institution = getOrCreateInstitution(row, institutionName, result);
 
             ProcurementPlan plan = procurementPlanRepository
@@ -155,7 +200,13 @@ public class ENabavkiFullImportService {
                                     .build()
                     ));
 
-            String cpvCode = row.get("ЗПЈН", "CPV", "cpvCode");
+            String cpvCode = cleanScrapedText(row.get(
+                    "ЗПЈН",
+                    "ЗЈН",
+                    "CPV",
+                    "CPV код",
+                    "cpvCode"
+            ));
 
             Optional<PlanItem> existing =
                     planItemRepository.findFirstByPlanIdAndSubjectIgnoreCaseAndCpvCode(
@@ -172,9 +223,20 @@ public class ENabavkiFullImportService {
 
             item.setContractType(contractType(row));
             item.setProcedureType(procedureType(row));
-            item.setExpectedStartMonth(row.get("Очекуван старт", "expectedStartMonth"));
-            item.setHasNotice(parseBoolean(row.get("Оглас", "hasNotice")));
-            item.setNotes(row.get("Забелешки", "notes"));
+            item.setExpectedStartMonth(cleanScrapedText(row.get(
+                    "Очекуван почеток",
+                    "Очекуван старт",
+                    "Месец",
+                    "expectedStartMonth"
+            )));
+            item.setHasNotice(parseBoolean(row.get(
+                    "_hasNotice",
+                    "Оглас",
+                    "Има оглас",
+                    "Дали има оглас",
+                    "hasNotice"
+            )));
+            item.setNotes(cleanScrapedText(row.get("Забелешки", "notes")));
             item.setSourceUrl(firstText(row.sourceUrl(), row.get("_parentSourceUrl")));
 
             planItemRepository.save(item);
@@ -332,8 +394,21 @@ public class ENabavkiFullImportService {
             Institution institution = getOrCreateInstitution(row, institutionName, result);
             Supplier supplier = hasText(supplierName) ? getOrCreateSupplier(row, supplierName, result) : null;
 
+            getOrCreateNoticePlaceholder(
+                    noticeNumber,
+                    institution,
+                    subject,
+                    row.sourceUrl()
+            );
+
             Optional<Contract> existing =
-                    findContract(noticeNumber, institution.getId(), supplier == null ? null : supplier.getId(), subject);
+                    findContractForContractImport(
+                            row.sourceUrl(),
+                            noticeNumber,
+                            institution.getId(),
+                            supplier == null ? null : supplier.getId(),
+                            subject
+                    );
 
             Contract contract = existing.orElseGet(() -> Contract.builder()
                     .noticeNumber(noticeNumber)
@@ -341,6 +416,7 @@ public class ENabavkiFullImportService {
                     .supplier(supplier)
                     .build());
 
+            contract.setNoticeNumber(noticeNumber);
             contract.setInstitution(institution);
             contract.setSupplier(supplier);
             contract.setSubject(subject);
@@ -350,7 +426,10 @@ public class ENabavkiFullImportService {
             contract.setPublicationDate(publicationDate);
             contract.setEstimatedValueVat(estimatedValue(row));
             contract.setContractValueVat(contractValue(row));
-            contract.setCurrency(ValueParser.detectCurrency(firstText(row.get("Валута", "currency"), row.fields().toString())));
+            contract.setCurrency(ValueParser.detectCurrency(firstText(
+                    row.get("Валута", "currency"),
+                    row.fields().toString()
+            )));
             contract.setSourceUrl(row.sourceUrl());
 
             Contract saved = contractRepository.save(contract);
@@ -434,24 +513,85 @@ public class ENabavkiFullImportService {
     }
 
     private Institution getOrCreateInstitution(ScrapedRow row, String officialName, ImportResultDto result) {
+        officialName = cleanInstitutionName(firstText(
+                row.get("_institutionOfficialName"),
+                row.get("Назив на договорниот орган"),
+                officialName
+        ));
+
+        if (!hasText(officialName)) {
+            throw new IllegalArgumentException("Institution officialName is missing for row: " + row.sourceUrl());
+        }
+
         String normalized = TextNormalizer.normalizeName(officialName);
 
-        return institutionRepository.findFirstByNormalizedName(normalized)
-                .orElseGet(() -> {
-                    Institution institution = Institution.builder()
-                            .externalId(row.get("externalId", "ID", "Шифра"))
-                            .officialName(TextNormalizer.safe(officialName))
-                            .normalizedName(normalized)
-                            .institutionType(row.get("Тип на институција", "institutionType"))
-                            .city(row.get("Град", "city"))
-                            .postalCode(row.get("Поштенски број", "postalCode"))
-                            .category(row.get("Категорија", "category"))
-                            .sourceUrl(row.sourceUrl())
-                            .build();
+        Optional<Institution> existingOpt = institutionRepository.findFirstByNormalizedName(normalized);
 
-                    result.setInstitutionsImported(result.getInstitutionsImported() + 1);
-                    return institutionRepository.save(institution);
-                });
+        if (existingOpt.isPresent()) {
+            Institution existing = existingOpt.get();
+
+            boolean changed = false;
+
+            changed |= fillIfBlank(existing::getExternalId, existing::setExternalId,
+                    cleanScrapedText(row.get("externalId", "ID", "Шифра")));
+
+            changed |= fillIfBlank(existing::getOfficialName, existing::setOfficialName,
+                    TextNormalizer.safe(officialName));
+
+            changed |= fillIfBlank(existing::getInstitutionType, existing::setInstitutionType,
+                    cleanScrapedText(row.get("Тип на институција", "institutionType")));
+
+            changed |= fillIfBlank(existing::getCity, existing::setCity,
+                    cleanScrapedText(row.get("_institutionCity", "Град", "city")));
+
+            changed |= fillIfBlank(existing::getPostalCode, existing::setPostalCode,
+                    cleanScrapedText(row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode")));
+
+            changed |= fillIfBlank(existing::getCategory, existing::setCategory,
+                    cleanScrapedText(row.get("_institutionCategory", "Категорија", "category")));
+
+            String betterSourceUrl = firstText(row.get("_parentSourceUrl"), row.sourceUrl());
+
+            if (hasText(betterSourceUrl) && !betterSourceUrl.equals(existing.getSourceUrl())) {
+                existing.setSourceUrl(betterSourceUrl);
+                changed = true;
+            }
+
+            if (changed) {
+                return institutionRepository.save(existing);
+            }
+
+            return existing;
+        }
+
+        Institution institution = Institution.builder()
+                .externalId(cleanScrapedText(row.get("externalId", "ID", "Шифра")))
+                .officialName(TextNormalizer.safe(officialName))
+                .normalizedName(normalized)
+                .institutionType(cleanScrapedText(row.get("Тип на институција", "institutionType")))
+                .city(cleanScrapedText(row.get("_institutionCity", "Град", "city")))
+                .postalCode(cleanScrapedText(row.get("_institutionPostalCode", "Поштенски код", "Поштенски број", "postalCode")))
+                .category(cleanScrapedText(row.get("_institutionCategory", "Категорија", "category")))
+                .sourceUrl(firstText(row.get("_parentSourceUrl"), row.sourceUrl()))
+                .build();
+
+        result.setInstitutionsImported(result.getInstitutionsImported() + 1);
+        return institutionRepository.save(institution);
+    }
+
+    private String cleanInstitutionName(String value) {
+        value = cleanScrapedText(value);
+
+        if (!hasText(value)) {
+            return value;
+        }
+
+        return value
+                .replaceFirst("(?i)^\\s*(?:I|1)\\.1\\.1\\)\\s*", "")
+                .replaceFirst("(?i)^\\s*Назив на договорниот орган\\s*:?\\s*", "")
+                .replaceFirst("(?i)^\\s*Договорен орган\\s*:?\\s*", "")
+                .replaceFirst("(?i)^\\s*Институција\\s*:?\\s*", "")
+                .trim();
     }
 
     private Supplier getOrCreateSupplier(ScrapedRow row, String officialName, ImportResultDto result) {
@@ -460,7 +600,7 @@ public class ENabavkiFullImportService {
         return supplierRepository.findFirstByNormalizedName(normalized)
                 .orElseGet(() -> {
                     Supplier supplier = Supplier.builder()
-                            .externalId(row.get("externalId", "ID", "Шифра"))
+                            .externalId(cleanScrapedText(row.get("externalId", "ID", "Шифра")))
                             .officialName(TextNormalizer.safe(officialName))
                             .normalizedName(normalized)
                             .realOwnersInfo(realOwners(row))
@@ -478,15 +618,24 @@ public class ENabavkiFullImportService {
             String subject,
             String sourceUrl
     ) {
-        return noticeRepository.findFirstByNoticeNumber(noticeNumber)
-                .orElseGet(() -> noticeRepository.save(
-                        Notice.builder()
-                                .noticeNumber(noticeNumber)
-                                .institution(institution)
-                                .subject(subject)
-                                .sourceUrl(sourceUrl)
-                                .build()
-                ));
+        Notice notice = noticeRepository.findFirstByNoticeNumber(noticeNumber)
+                .orElseGet(() -> Notice.builder()
+                        .noticeNumber(noticeNumber)
+                        .build());
+
+        if (notice.getInstitution() == null && institution != null) {
+            notice.setInstitution(institution);
+        }
+
+        if (!hasText(notice.getSubject()) && hasText(subject)) {
+            notice.setSubject(subject);
+        }
+
+        if (!hasText(notice.getSourceUrl()) && hasText(sourceUrl)) {
+            notice.setSourceUrl(sourceUrl);
+        }
+
+        return noticeRepository.save(notice);
     }
 
     private Optional<Contract> findContract(
@@ -541,18 +690,23 @@ public class ENabavkiFullImportService {
     }
 
     private String institutionName(ScrapedRow row) {
-        return row.get(
-                "Назив на договорниот орган",
-                "Договорен орган",
-                "Институција",
-                "Contracting authority",
-                "Institution",
-                "institution"
-        );
+        return cleanInstitutionName(firstText(
+                row.get("_institutionOfficialName"),
+                row.get("_parentInstitution"),
+                row.get(
+                        "Назив на договорниот орган",
+                        "Договорен орган",
+                        "Институција",
+                        "Contracting authority",
+                        "Institution",
+                        "institution"
+                )
+        ));
     }
 
     private String supplierName(ScrapedRow row) {
-        return row.get(
+        return cleanScrapedText(row.get(
+                "Носител на набавката",
                 "Носител на набавка",
                 "Добавувач",
                 "Економски оператор",
@@ -560,80 +714,94 @@ public class ENabavkiFullImportService {
                 "Оператор",
                 "Supplier",
                 "supplier"
-        );
+        ));
     }
 
     private String noticeNumber(ScrapedRow row) {
-        return row.get(
+        String raw = cleanScrapedText(row.get(
                 "Број на оглас",
-                "Оглас",
+                "Бр. на оглас",
+                "Оглас број",
                 "Број на постапка",
-                "Број",
+                "Број на оглас/постапка",
                 "noticeNumber",
-                "brojNaOglas"
-        );
+                "brojNaOglas",
+                "Број"
+        ));
+
+        return normalizeNoticeNumber(raw);
     }
 
     private String subject(ScrapedRow row) {
-        return row.get(
+        return cleanScrapedText(row.get(
+                "Предмет на договорот",
                 "Предмет на договорот за јавна набавка",
                 "Предмет на набавка",
                 "Предмет",
                 "Опис",
                 "subject"
-        );
+        ));
     }
 
     private String contractType(ScrapedRow row) {
-        return row.get("Вид на договор за јавна набавка", "Вид на договор", "contractType");
+        return cleanScrapedText(row.get("Вид на договор за јавна набавка", "Вид на договор", "contractType"));
     }
 
     private String procedureType(ScrapedRow row) {
-        return row.get("Вид на постапка", "Постапка", "procedureType");
+        return cleanScrapedText(row.get("Вид на постапка", "Постапка", "procedureType"));
     }
 
     private String realOwners(ScrapedRow row) {
-        return row.get("Вистински сопственици", "Податоци за сопственици", "realOwnersInfo");
+        return cleanScrapedText(row.get("Вистински сопственици", "Податоци за сопственици", "realOwnersInfo"));
     }
 
     private LocalDate publicationDate(ScrapedRow row) {
-        return ValueParser.parseDate(row.get("Датум на објава", "Датум на објавување", "publicationDate"));
+        return ValueParser.parseDate(cleanScrapedText(row.get("Датум на објава", "Датум на објавување", "publicationDate")));
     }
 
     private LocalDateTime deadlineDate(ScrapedRow row) {
-        return ValueParser.parseDateTime(row.get("Краен рок", "Рок за поднесување", "deadlineDate"));
+        return ValueParser.parseDateTime(cleanScrapedText(row.get("Краен рок", "Рок за поднесување", "deadlineDate")));
     }
 
     private LocalDate decisionDate(ScrapedRow row) {
-        return ValueParser.parseDate(row.get("Датум на одлука", "Датум на избор", "decisionDate"));
+        return ValueParser.parseDate(cleanScrapedText(row.get("Датум на одлука", "Датум на избор", "decisionDate")));
     }
 
     private LocalDate contractDate(ScrapedRow row) {
-        return ValueParser.parseDate(row.get("Датум на договор", "Датум на склучување на договор", "contractDate"));
+        return ValueParser.parseDate(cleanScrapedText(row.get("Датум на договор", "Датум на склучување на договор", "contractDate")));
     }
 
     private LocalDate republishDate(ScrapedRow row) {
-        return ValueParser.parseDate(row.get("Датум на повторна објава", "republishDate"));
+        return ValueParser.parseDate(cleanScrapedText(row.get("Датум на повторна објава", "republishDate")));
     }
 
     private BigDecimal estimatedValue(ScrapedRow row) {
-        return ValueParser.parseMoney(row.get("Проценета вредност", "estimatedValueVat"));
+        return ValueParser.parseMoney(cleanScrapedText(row.get(
+                "Проценета вредност на набавката со ДДВ",
+                "Проценета вредност",
+                "estimatedValueVat"
+        )));
     }
 
     private BigDecimal contractValue(ScrapedRow row) {
-        return ValueParser.parseMoney(row.get("Вредност на договор", "Вкупна вредност со ДДВ", "contractValueVat"));
+        return ValueParser.parseMoney(cleanScrapedText(row.get(
+                "Вредност на договорот со ДДВ",
+                "Вредност на договор",
+                "Вкупна вредност со ДДВ",
+                "contractValueVat"
+        )));
     }
 
     private BigDecimal awardedValue(ScrapedRow row) {
-        return ValueParser.parseMoney(row.get("Доделена вредност", "awardedValueVat"));
+        return ValueParser.parseMoney(cleanScrapedText(row.get("Доделена вредност", "awardedValueVat")));
     }
 
     private BigDecimal realizedValue(ScrapedRow row) {
-        return ValueParser.parseMoney(row.get("Реализирана вредност", "realizedValueVat"));
+        return ValueParser.parseMoney(cleanScrapedText(row.get("Реализирана вредност", "realizedValueVat")));
     }
 
     private BigDecimal paidValue(ScrapedRow row) {
-        return ValueParser.parseMoney(row.get("Платена вредност", "paidValueVat"));
+        return ValueParser.parseMoney(cleanScrapedText(row.get("Платена вредност", "paidValueVat")));
     }
 
     private Boolean parseBoolean(String value) {
@@ -641,10 +809,18 @@ public class ENabavkiFullImportService {
             return false;
         }
 
-        String normalized = TextNormalizer.normalizeKey(value);
-        return normalized.contains("да")
+        String normalized = TextNormalizer.normalizeKey(cleanScrapedText(value));
+
+        return normalized.equals("1")
+                || normalized.equals("true")
+                || normalized.equals("yes")
+                || normalized.equals("да")
+                || normalized.contains("true")
                 || normalized.contains("yes")
-                || normalized.contains("true");
+                || normalized.contains("да")
+                || normalized.contains("има")
+                || normalized.contains("notice")
+                || normalized.contains("оглас");
     }
 
     @SafeVarargs
@@ -674,6 +850,146 @@ public class ENabavkiFullImportService {
         }
 
         return null;
+    }
+
+    private Optional<Contract> findContractForContractImport(
+            String sourceUrl,
+            String noticeNumber,
+            Long institutionId,
+            Long supplierId,
+            String subject
+    ) {
+        if (hasText(sourceUrl)) {
+            Optional<Contract> foundBySourceUrl = contractRepository.findFirstBySourceUrl(sourceUrl);
+
+            if (foundBySourceUrl.isPresent()) {
+                return foundBySourceUrl;
+            }
+        }
+
+        if (hasText(noticeNumber) && institutionId != null && supplierId != null && hasText(subject)) {
+            return contractRepository.findFirstByNoticeNumberAndInstitutionIdAndSupplierIdAndSubjectContainingIgnoreCase(
+                    noticeNumber,
+                    institutionId,
+                    supplierId,
+                    TextNormalizer.firstPart(subject, 80)
+            );
+        }
+
+        return Optional.empty();
+    }
+
+    @Transactional
+    protected void linkProcurementLifecycle() {
+        List<Contract> contracts = contractRepository.findAll();
+
+        for (Contract contract : contracts) {
+            String noticeNumber = normalizeNoticeNumber(contract.getNoticeNumber());
+
+            if (noticeNumber == null) {
+                continue;
+            }
+
+            Notice notice = noticeRepository
+                    .findFirstByNoticeNumber(noticeNumber)
+                    .orElse(null);
+
+            if (notice != null) {
+                contract.setNotice(notice);
+
+                if (contract.getInstitution() == null && notice.getInstitution() != null) {
+                    contract.setInstitution(notice.getInstitution());
+                }
+
+                Decision decision = decisionRepository
+                        .findFirstByNoticeNumber(noticeNumber)
+                        .orElse(null);
+
+                if (decision != null) {
+                    contract.setDecision(decision);
+
+                    if (contract.getSupplier() == null && decision.getSupplier() != null) {
+                        contract.setSupplier(decision.getSupplier());
+                    }
+
+                    if (decision.getContract() == null) {
+                        decision.setContract(contract);
+                        decisionRepository.save(decision);
+                    }
+                }
+
+                contractRepository.save(contract);
+            }
+        }
+
+        List<RealizedContract> realizedContracts = realizedContractRepository.findAll();
+
+        for (RealizedContract realizedContract : realizedContracts) {
+            String noticeNumber = normalizeNoticeNumber(realizedContract.getNoticeNumber());
+
+            if (noticeNumber == null) {
+                continue;
+            }
+
+            Contract contract = contractRepository
+                    .findFirstByNoticeNumber(noticeNumber)
+                    .orElse(null);
+
+            if (contract != null) {
+                realizedContract.setContract(contract);
+
+                if (realizedContract.getInstitution() == null && contract.getInstitution() != null) {
+                    realizedContract.setInstitution(contract.getInstitution());
+                }
+
+                if (realizedContract.getSupplier() == null && contract.getSupplier() != null) {
+                    realizedContract.setSupplier(contract.getSupplier());
+                }
+
+                realizedContractRepository.save(realizedContract);
+            }
+        }
+    }
+
+    private String normalizeNoticeNumber(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return cleanScrapedText(value)
+                .replace("\u00A0", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private boolean fillIfBlank(
+            java.util.function.Supplier<String> getter,
+            Consumer<String> setter,
+            String newValue
+    ) {
+        if (!hasText(getter.get()) && hasText(newValue)) {
+            setter.accept(newValue.trim());
+            return true;
+        }
+
+        return false;
+    }
+
+    private static String cleanScrapedText(String value) {
+        if (!hasText(value)) {
+            return value;
+        }
+
+        String fixed = MojibakeFixer.fix(value);
+
+        if (fixed == null) {
+            fixed = value;
+        }
+
+        return fixed
+                .replace("\u00A0", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private static boolean hasText(String value) {

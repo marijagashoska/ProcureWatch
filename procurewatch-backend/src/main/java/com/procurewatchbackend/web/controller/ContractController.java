@@ -210,4 +210,6 @@ public class ContractController {
                 contractApplicationService.getAllPaginated(page, size, sortBy, sortDir)
         );
     }
+
+
 }
