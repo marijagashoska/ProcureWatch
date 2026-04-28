@@ -1,22 +1,23 @@
 package com.procurewatchbackend.service.application.impl;
 
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.procurewatchbackend.dto.create.CreateDecisionDto;
 import com.procurewatchbackend.dto.display.GetDecisionDto;
-import com.procurewatchbackend.dto.display.GetInstitutionDto;
 import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditDecisionDto;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.service.application.DecisionApplicationService;
 import com.procurewatchbackend.service.domain.DecisionDomainService;
 import com.procurewatchbackend.util.PageUtils;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -83,22 +84,6 @@ public class DecisionApplicationServiceImpl implements DecisionApplicationServic
                 .toList();
     }
 
-    private GetDecisionDto mapToGetDto(Decision decision) {
-        return new GetDecisionDto(
-                decision.getId(),
-                decision.getNotice().getId(),
-                decision.getContract().getId(),
-                decision.getInstitution().getId(),
-                decision.getSupplier() != null ? decision.getSupplier().getId() : null,
-                decision.getNoticeNumber(),
-                decision.getDecisionDate(),
-                decision.getSubject(),
-                decision.getDecisionText(),
-                decision.getProcedureType(),
-                decision.getSourceUrl()
-        );
-    }
-
     @Override
     public List<GetDecisionDto> getAllByNotice(Long noticeId) {
         return decisionDomainService.getAllByNotice(noticeId)
@@ -120,5 +105,21 @@ public class DecisionApplicationServiceImpl implements DecisionApplicationServic
                 .map(this::mapToGetDto);
 
         return PageUtils.toPagedResponse(result, sortBy, sortDir);
+    }
+
+    private GetDecisionDto mapToGetDto(Decision decision) {
+        return new GetDecisionDto(
+                decision.getId(),
+                decision.getNotice() != null ? decision.getNotice().getId() : null,
+                decision.getContract() != null ? decision.getContract().getId() : null,
+                decision.getInstitution() != null ? decision.getInstitution().getId() : null,
+                decision.getSupplier() != null ? decision.getSupplier().getId() : null,
+                decision.getNoticeNumber(),
+                decision.getDecisionDate(),
+                decision.getSubject(),
+                decision.getDecisionText(),
+                decision.getProcedureType(),
+                decision.getSourceUrl()
+        );
     }
 }

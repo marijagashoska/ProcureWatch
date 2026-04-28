@@ -1,5 +1,11 @@
 package com.procurewatchbackend.service.application.impl;
 
+import java.util.Collections;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.procurewatchbackend.dto.display.GetContractDto;
 import com.procurewatchbackend.dto.display.GetContractLifecycleDto;
 import com.procurewatchbackend.dto.display.GetDecisionDto;
@@ -17,12 +23,8 @@ import com.procurewatchbackend.model.entity.RealizedContract;
 import com.procurewatchbackend.service.application.LifecycleApplicationService;
 import com.procurewatchbackend.service.domain.LifecycleDomainService;
 import com.procurewatchbackend.service.domain.model.ContractLifecycleSnapshot;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -125,9 +127,9 @@ public class LifecycleApplicationServiceImpl implements LifecycleApplicationServ
 
         return new GetDecisionDto(
                 decision.getId(),
-                decision.getNotice().getId(),
-                decision.getContract().getId(),
-                decision.getInstitution().getId(),
+                decision.getNotice() != null ? decision.getNotice().getId() : null,
+                decision.getContract() != null ? decision.getContract().getId() : null,
+                decision.getInstitution() != null ? decision.getInstitution().getId() : null,
                 decision.getSupplier() != null ? decision.getSupplier().getId() : null,
                 decision.getNoticeNumber(),
                 decision.getDecisionDate(),
