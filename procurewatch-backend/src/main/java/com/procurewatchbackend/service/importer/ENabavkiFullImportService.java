@@ -16,11 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -157,7 +157,9 @@ public class ENabavkiFullImportService {
                     institutionName(row)
             );
 
-            if (!hasText(institutionName)) {
+           // String subject = subject(row);
+
+            if (!hasText(institutionName) ) {
                 result.setSkippedRows(result.getSkippedRows() + 1);
                 continue;
             }
@@ -179,10 +181,13 @@ public class ENabavkiFullImportService {
 
             /*
              * IMPORTANT:
-             * Enrich/create institution BEFORE checking subject.
-             * Some annual-plan detail pages have institution data but no item rows.
-             * Those rows come as _metadataOnly=true, and we still want to save:
-             * city, postalCode, category, sourceUrl, and plan.
+             * This row now contains:
+             * _institutionOfficialName
+             * _institutionCity
+             * _institutionPostalCode
+             * _institutionCategory
+             *
+             * So this call enriches Institution before creating/finding the plan.
              */
             Institution institution = getOrCreateInstitution(row, institutionName, result);
 
@@ -232,7 +237,6 @@ public class ENabavkiFullImportService {
                     "Месец",
                     "expectedStartMonth"
             )));
-
             item.setHasNotice(parseBoolean(row.get(
                     "_hasNotice",
                     "Оглас",
@@ -240,7 +244,6 @@ public class ENabavkiFullImportService {
                     "Дали има оглас",
                     "hasNotice"
             )));
-
             item.setNotes(cleanScrapedText(row.get("Забелешки", "notes")));
             item.setSourceUrl(firstText(row.sourceUrl(), row.get("_parentSourceUrl")));
 
@@ -308,17 +311,21 @@ public class ENabavkiFullImportService {
 
             Institution institution = getOrCreateInstitution(row, institutionName, result);
 
-            Notice notice = Notice.builder()
+            //Optional<Notice> existing = noticeRepository.findFirstByNoticeNumber(noticeNumber);
+
+            Notice notice = existing.orElseGet(() -> Notice.builder()
                     .noticeNumber(noticeNumber)
                     .institution(institution)
-                    .build();
+                    .build());
 
+            notice.setInstitution(institution);
             notice.setSubject(subject);
             notice.setContractType(contractType(row));
             notice.setProcedureType(procedureType(row));
             notice.setPublicationDate(publicationDate);
             notice.setDeadlineDate(deadlineDate(row));
             notice.setSourceUrl(row.sourceUrl());
+
             if (notice.getPlanItem() == null && publicationDate != null && hasText(subject)) {
                 findPlanItem(institution.getId(), subject, publicationDate.getYear())
                         .ifPresent(planItem -> {
@@ -360,8 +367,7 @@ public class ENabavkiFullImportService {
 
             Institution institution = getOrCreateInstitution(row, institutionName, result);
             Supplier supplier = hasText(supplierName) ? getOrCreateSupplier(row, supplierName, result) : null;
-            Notice notice = getOrCreateNoticePlaceholder(noticeNumber, institution, subject, row.sourceUrl());
-
+            Notice notice = findExistingNoticeByNoticeNumber(noticeNumber).orElse(null);
             Optional<Decision> existing = supplier == null
                     ? decisionRepository.findFirstByNoticeNumber(noticeNumber)
                     : decisionRepository.findFirstByNoticeNumberAndSupplierIdAndDecisionDate(
@@ -377,6 +383,7 @@ public class ENabavkiFullImportService {
                     .noticeNumber(noticeNumber)
                     .build());
 
+            decision.setNoticeNumber(noticeNumber);
             decision.setNotice(notice);
             decision.setInstitution(institution);
             decision.setSupplier(supplier);
@@ -539,12 +546,12 @@ public class ENabavkiFullImportService {
             Institution institution = getOrCreateInstitution(row, institutionName, result);
             Supplier supplier = hasText(supplierName) ? getOrCreateSupplier(row, supplierName, result) : null;
 
-            Notice notice = getOrCreateNoticePlaceholder(
-                    noticeNumber,
-                    institution,
-                    subject,
-                    row.sourceUrl()
-            );
+            /*
+             * Map Contract -> Notice by noticeNumber only if a real Notice already exists.
+             * Do not create a placeholder Notice. If there is no matching Notice,
+             * the Contract is still saved without notice connection.
+             */
+            Notice notice = findExistingNoticeByNoticeNumber(noticeNumber).orElse(null);
 
             Optional<Contract> existing =
                     findContractForContractImport(
@@ -585,7 +592,10 @@ public class ENabavkiFullImportService {
             }
 
             findBestDecisionForContract(saved).ifPresent(decision -> {
-                if (decision.getNotice() == null || !sameId(decision.getNotice().getId(), notice.getId())) {
+                if (notice != null && (
+                        decision.getNotice() == null
+                                || !sameId(decision.getNotice().getId(), notice.getId())
+                )) {
                     decision.setNotice(notice);
                 }
 
@@ -708,6 +718,10 @@ public class ENabavkiFullImportService {
                 officialName
         ));
 
+        if (!hasText(officialName)) {
+            throw new IllegalArgumentException("Institution officialName is missing for row: " + row.sourceUrl());
+        }
+
         String normalized = TextNormalizer.normalizeName(officialName);
 
         Optional<Institution> existingOpt = institutionRepository.findFirstByNormalizedName(normalized);
@@ -797,6 +811,31 @@ public class ENabavkiFullImportService {
                     result.setSuppliersImported(result.getSuppliersImported() + 1);
                     return supplierRepository.save(supplier);
                 });
+    }
+
+    private Optional<Notice> findExistingNoticeByNoticeNumber(String noticeNumber) {
+        String normalizedNoticeNumber = normalizeNoticeNumber(noticeNumber);
+
+        if (!hasText(normalizedNoticeNumber)) {
+            return Optional.empty();
+        }
+
+        Optional<Notice> exactMatch = noticeRepository.findFirstByNoticeNumber(normalizedNoticeNumber);
+
+        if (exactMatch.isPresent()) {
+            return exactMatch;
+        }
+
+        Optional<Notice> ignoreCaseMatch = noticeRepository.findFirstByNoticeNumberIgnoreCase(normalizedNoticeNumber);
+
+        if (ignoreCaseMatch.isPresent()) {
+            return ignoreCaseMatch;
+        }
+
+        return noticeRepository.findAll()
+                .stream()
+                .filter(notice -> normalizedNoticeNumber.equals(normalizeNoticeNumber(notice.getNoticeNumber())))
+                .findFirst();
     }
 
     private Notice getOrCreateNoticePlaceholder(
@@ -1071,6 +1110,28 @@ public class ENabavkiFullImportService {
 
     @Transactional
     protected void linkProcurementLifecycle() {
+        List<Decision> decisions = decisionRepository.findAll();
+
+        for (Decision decision : decisions) {
+            String noticeNumber = normalizeNoticeNumber(decision.getNoticeNumber());
+
+            if (!hasText(noticeNumber)) {
+                continue;
+            }
+
+            if (decision.getNotice() == null) {
+                findExistingNoticeByNoticeNumber(noticeNumber)
+                        .ifPresent(decision::setNotice);
+            }
+
+            if (decision.getContract() == null) {
+                contractRepository.findFirstByNoticeNumber(noticeNumber)
+                        .ifPresent(decision::setContract);
+            }
+
+            decisionRepository.save(decision);
+        }
+
         List<Contract> contracts = contractRepository.findAll();
 
         for (Contract contract : contracts) {
@@ -1080,41 +1141,19 @@ public class ENabavkiFullImportService {
                 continue;
             }
 
-            contract.setNoticeNumber(noticeNumber);
-
-            Notice notice = findBestNoticeByNoticeNumber(noticeNumber).orElse(null);
-
-            if (notice == null) {
-                continue;
+            if (contract.getNotice() == null) {
+                findExistingNoticeByNoticeNumber(noticeNumber)
+                        .ifPresent(contract::setNotice);
             }
 
-            contract.setNotice(notice);
-
-            if (contract.getInstitution() == null && notice.getInstitution() != null) {
-                contract.setInstitution(notice.getInstitution());
-            }
-
-            Contract savedContract = contractRepository.save(contract);
-
-            findBestDecisionForContract(savedContract).ifPresent(decision -> {
-                if (decision.getNotice() == null || !sameId(decision.getNotice().getId(), notice.getId())) {
-                    decision.setNotice(notice);
-                }
-
+            decisionRepository.findFirstByNoticeNumber(noticeNumber).ifPresent(decision -> {
                 if (decision.getContract() == null) {
-                    decision.setContract(savedContract);
+                    decision.setContract(contract);
+                    decisionRepository.save(decision);
                 }
-
-                if (decision.getInstitution() == null && savedContract.getInstitution() != null) {
-                    decision.setInstitution(savedContract.getInstitution());
-                }
-
-                if (decision.getSupplier() == null && savedContract.getSupplier() != null) {
-                    decision.setSupplier(savedContract.getSupplier());
-                }
-
-                decisionRepository.save(decision);
             });
+
+            contractRepository.save(contract);
         }
 
         List<RealizedContract> realizedContracts = realizedContractRepository.findAll();
@@ -1126,12 +1165,13 @@ public class ENabavkiFullImportService {
                 continue;
             }
 
-            Contract contract = contractRepository
-                    .findFirstByNoticeNumberOrderByIdAsc(noticeNumber)
-                    .orElse(null);
+            if (realizedContract.getContract() == null) {
+                contractRepository.findFirstByNoticeNumber(noticeNumber)
+                        .ifPresent(realizedContract::setContract);
+            }
 
-            if (contract != null) {
-                realizedContract.setContract(contract);
+            if (realizedContract.getContract() != null) {
+                Contract contract = realizedContract.getContract();
 
                 if (realizedContract.getInstitution() == null && contract.getInstitution() != null) {
                     realizedContract.setInstitution(contract.getInstitution());
@@ -1140,9 +1180,9 @@ public class ENabavkiFullImportService {
                 if (realizedContract.getSupplier() == null && contract.getSupplier() != null) {
                     realizedContract.setSupplier(contract.getSupplier());
                 }
-
-                realizedContractRepository.save(realizedContract);
             }
+
+            realizedContractRepository.save(realizedContract);
         }
     }
 
