@@ -193,22 +193,173 @@ public class ENabavkiBrowserClient {
                 return result;
             }
 
+            String annualPlanUrl = page.url();
+
             for (ScrapedRow itemRow : itemRows) {
-                Map<String, String> merged = new LinkedHashMap<>(itemRow.fields());
+                ScrapedRow enrichedItemRow = itemRow;
+
+                if (isTruthy(itemRow.get("_hasNotice", "Оглас", "hasNotice"))) {
+                    try {
+                        ScrapedRow noticeDetailRow = scrapeAnnualPlanNoticeDetail(page, itemRow, annualPlanUrl);
+
+                        if (noticeDetailRow != null) {
+                            enrichedItemRow = itemRow.merge(prefixNoticeFields(noticeDetailRow));
+                        }
+                    } catch (Exception ex) {
+                        enrichedItemRow = itemRow.with("_noticeScrapeError", ex.getMessage());
+                    } finally {
+                        ensureOnAnnualPlanPage(page, annualPlanUrl);
+                    }
+                }
+
+                Map<String, String> merged = new LinkedHashMap<>(enrichedItemRow.fields());
 
                 addAnnualPlanParentAndInstitutionFields(
                         merged,
                         annualPlanRow,
                         institutionDetails,
-                        page.url()
+                        annualPlanUrl
                 );
 
-                result.add(new ScrapedRow(merged, page.url()));
+                result.add(new ScrapedRow(merged, annualPlanUrl));
             }
 
             return result;
         }
     }
+
+    private ScrapedRow scrapeAnnualPlanNoticeDetail(Page page, ScrapedRow itemRow, String annualPlanUrl) {
+        String directNoticeUrl = firstText(itemRow.get("_noticeUrl"));
+
+        if (directNoticeUrl != null) {
+            return scrapeDetail(directNoticeUrl);
+        }
+
+        boolean clicked = clickAnnualPlanNoticeCell(page, itemRow);
+
+        if (!clicked) {
+            return null;
+        }
+
+        waitForUsefulContent(page);
+        expandAllSections(page);
+
+        Map<String, String> fields = new LinkedHashMap<>();
+
+        for (ScrapedRow tableRow : readRowsFromTables(page)) {
+            fields.putAll(tableRow.fields());
+        }
+
+        fields.putAll(readKeyValueFields(page));
+        fields.putAll(readInstitutionBlock(page));
+        fields.put("_pageText", safeText(page, "body"));
+
+        return new ScrapedRow(fields, page.url()).with("_sourceAnnualPlanUrl", annualPlanUrl);
+    }
+
+    private ScrapedRow prefixNoticeFields(ScrapedRow noticeDetailRow) {
+        Map<String, String> prefixed = new LinkedHashMap<>();
+
+        for (Map.Entry<String, String> entry : noticeDetailRow.fields().entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+
+            if (key != null && value != null && !key.isBlank() && !value.isBlank()) {
+                prefixed.put("_notice_" + key.trim(), value.trim());
+            }
+        }
+
+        putIfText(prefixed, "_noticeSourceUrl", noticeDetailRow.sourceUrl());
+
+        return new ScrapedRow(prefixed, noticeDetailRow.sourceUrl());
+    }
+
+    private void ensureOnAnnualPlanPage(Page page, String annualPlanUrl) {
+        if (annualPlanUrl == null || annualPlanUrl.isBlank()) {
+            return;
+        }
+
+        try {
+            if (!annualPlanUrl.equals(page.url())) {
+                page.navigate(annualPlanUrl);
+                waitForUsefulContent(page);
+                expandAllSections(page);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private boolean clickAnnualPlanNoticeCell(Page page, ScrapedRow itemRow) {
+        String tableIndex = itemRow.get("_tableIndex");
+        String rowIndex = itemRow.get("_rowIndex");
+        String noticeColumnIndex = itemRow.get("_noticeColumnIndex");
+
+        if (tableIndex == null || rowIndex == null) {
+            return false;
+        }
+
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("tableIndex", tableIndex);
+        args.put("rowIndex", rowIndex);
+        args.put("noticeColumnIndex", noticeColumnIndex);
+
+        Object result = page.evaluate("""
+        (args) => {
+          const tableIndex = Number(args.tableIndex);
+          const rowIndex = Number(args.rowIndex);
+          const noticeColumnIndex = args.noticeColumnIndex === null || args.noticeColumnIndex === undefined || args.noticeColumnIndex === ''
+            ? null
+            : Number(args.noticeColumnIndex);
+
+          const tables = Array.from(document.querySelectorAll('table'));
+          const table = tables[tableIndex];
+          if (!table) return false;
+
+          const rows = Array.from(table.querySelectorAll('tbody tr'))
+            .filter(tr => tr.querySelectorAll('td').length > 0);
+          const row = rows[rowIndex];
+          if (!row) return false;
+
+          const cells = Array.from(row.querySelectorAll('td'));
+          const cell = noticeColumnIndex !== null
+            ? cells[noticeColumnIndex]
+            : cells[cells.length - 1];
+          if (!cell) return false;
+
+          const target = cell.querySelector('a, button, img, i, svg, span.glyphicon, span[class*="icon"], span[class*="fa"], [ng-click], [data-ng-click], [onclick]') || cell;
+          target.click();
+
+          return true;
+        }
+        """, args);
+
+        return Boolean.TRUE.equals(result);
+    }
+
+    private boolean isTruthy(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String normalized = value
+                .replace("\u00A0", " ")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase();
+
+        return normalized.equals("1")
+                || normalized.equals("true")
+                || normalized.equals("yes")
+                || normalized.equals("да")
+                || normalized.contains("true")
+                || normalized.contains("yes")
+                || normalized.contains("да")
+                || normalized.contains("има")
+                || normalized.contains("оглас")
+                || normalized.contains("notice");
+    }
+
+
     @SuppressWarnings("unchecked")
     private Map<String, String> readAnnualPlanInstitutionDetails(Page page) {
         Object result = page.evaluate("""
@@ -339,6 +490,7 @@ public class ENabavkiBrowserClient {
             }
 
             fields.putAll(readKeyValueFields(page));
+            fields.putAll(readInstitutionBlock(page));
             fields.put("_pageText", safeText(page, "body"));
 
             return new ScrapedRow(fields, page.url());
@@ -1168,6 +1320,15 @@ public class ENabavkiBrowserClient {
 
           const normalize = (s) => clean(s).toLowerCase();
 
+            const absolute = (href) => {
+                          if (!href) return null;
+                          try {
+                            return new URL(href, window.location.href).href;
+                          } catch (e) {
+                            return href;
+                          }
+                        };
+
           const tableIsPlanItemsTable = (headers) => {
             const joined = normalize(headers.join(' '));
 
@@ -1268,11 +1429,20 @@ public class ENabavkiBrowserClient {
 
               const hasNotice = detectHasNotice(noticeCell);
 
-              row['_hasNotice'] = hasNotice ? 'true' : 'false';
-              row['Оглас'] = hasNotice ? 'true' : 'false';
-              row['hasNotice'] = hasNotice ? 'true' : 'false';
-
-              row['_tableIndex'] = String(tableIndex);
+             row['_hasNotice'] = hasNotice ? 'true' : 'false';
+                                                                  row['Оглас'] = hasNotice ? 'true' : 'false';
+                                                                  row['hasNotice'] = hasNotice ? 'true' : 'false';
+                                                                  row['_noticeColumnIndex'] = noticeIndex >= 0 ? String(noticeIndex) : String(cells.length - 1);
+                
+                                                                  if (hasNotice && noticeCell) {
+                                                                    const link = noticeCell.querySelector('a[href]');
+                
+                                                                    if (link) {
+                                                                      row['_noticeUrl'] = absolute(link.getAttribute('href'));
+                                                                    }
+                                                                  }
+                
+                                                                  row['_tableIndex'] = String(tableIndex);
               row['_rowIndex'] = String(rowIndex);
 
               rows.push(row);
