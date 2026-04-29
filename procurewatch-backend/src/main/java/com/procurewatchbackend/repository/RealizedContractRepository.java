@@ -80,4 +80,13 @@ public interface RealizedContractRepository extends JpaRepository<RealizedContra
             Long institutionId,
             Long supplierId
     );
+
+    List<RealizedContract> findByNoticeNumberIgnoreCaseOrderByIdAsc(String noticeNumber);
+
+    List<RealizedContract> findByContractIdOrderByIdAsc(Long contractId);
+
+    Optional<RealizedContract> findFirstByNoticeNumberIgnoreCaseAndSupplierIdOrderByIdAsc(
+            String noticeNumber,
+            Long supplierId
+    );
 }
