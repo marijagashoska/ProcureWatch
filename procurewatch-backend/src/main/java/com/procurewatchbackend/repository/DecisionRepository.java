@@ -34,4 +34,23 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
             Long supplierId,
             LocalDate decisionDate
     );
+    List<Decision> findByNoticeNumberOrderByIdAsc(String noticeNumber);
+
+    Optional<Decision> findFirstByNoticeNumberOrderByIdAsc(String noticeNumber);
+    Optional<Decision> findFirstBySourceUrl(String sourceUrl);
+
+    List<Decision> findByNoticeNumberIgnoreCaseOrderByIdAsc(String noticeNumber);
+
+    Optional<Decision> findFirstByNoticeNumberAndSubjectContainingIgnoreCaseAndDecisionTextContainingIgnoreCase(
+            String noticeNumber,
+            String subject,
+            String decisionText
+    );
+
+    Optional<Decision> findFirstByNoticeNumberIgnoreCaseAndSupplierIdOrderByIdAsc(
+            String noticeNumber,
+            Long supplierId
+    );
+
+    List<Decision> findByContractId(Long contractId);
 }
