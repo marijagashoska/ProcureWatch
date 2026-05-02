@@ -2,22 +2,21 @@ package com.procurewatchbackend.service.application.impl;
 
 import com.procurewatchbackend.dto.create.CreateContractDto;
 import com.procurewatchbackend.dto.display.GetContractDto;
-import com.procurewatchbackend.dto.display.GetInstitutionDto;
+import com.procurewatchbackend.dto.display.GetContractTableRowDto;
+import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditContractDto;
 import com.procurewatchbackend.model.entity.Contract;
+import com.procurewatchbackend.model.enums.RiskLevel;
 import com.procurewatchbackend.service.application.ContractApplicationService;
 import com.procurewatchbackend.service.domain.ContractDomainService;
 import com.procurewatchbackend.util.PageUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.procurewatchbackend.dto.display.GetContractTableRowDto;
-import com.procurewatchbackend.dto.display.PagedResponseDto;
-import com.procurewatchbackend.model.enums.RiskLevel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
