@@ -1,5 +1,6 @@
 package com.procurewatchbackend.service.domain.impl;
 
+import com.procurewatchbackend.service.domain.AnomalyScoreService;
 import com.procurewatchbackend.model.entity.Contract;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.model.entity.Notice;
@@ -35,12 +36,13 @@ import java.util.Optional;
 public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainService {
 
     private static final BigDecimal MAX_RULE_SCORE = new BigDecimal("100.00");
-    private static final String MODEL_VERSION = "rule-based-v1";
+    private static final String MODEL_VERSION = "rule-based-v2";
 
     private final ContractRepository contractRepository;
     private final NoticeRepository noticeRepository;
     private final RiskAssessmentRepository riskAssessmentRepository;
     private final TextSimilarityService textSimilarityService;
+    private final AnomalyScoreService anomalyScoreService;
 
     @Override
     public RiskAssessment evaluateContract(Long contractId) {
@@ -81,11 +83,22 @@ public class RiskAssessmentDomainServiceImpl implements RiskAssessmentDomainServ
 
         assessment.getTriggeredFlags().clear();
         assessment.setRuleScore(ruleScore);
-        assessment.setSimilarityScore(similarityScoreBD);
+        double anomalyScore = anomalyScoreService.calculateAnomalyScore(contractId);
+        BigDecimal anomalyScoreBD = new BigDecimal(anomalyScore).setScale(2, RoundingMode.HALF_UP);
 
-        //NEEDS TO BE MODIFIED AS WE GET OTHER SCORES AS WELL
-        assessment.setFinalRiskScore(ruleScore);
-        assessment.setRiskLevel(resolveRiskLevel(ruleScore));
+        assessment.setSimilarityScore(similarityScoreBD);
+        assessment.setAnomalyScore(anomalyScoreBD);
+
+// finalRiskScore = 60% rule + 20% similarity + 20% anomaly
+        BigDecimal finalScore = ruleScore.multiply(new BigDecimal("0.60"))
+                .add(similarityScoreBD.multiply(new BigDecimal("100")).multiply(new BigDecimal("0.20")))
+                .add(anomalyScoreBD.multiply(new BigDecimal("0.20")))
+                .min(MAX_RULE_SCORE)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        assessment.setFinalRiskScore(finalScore);
+        assessment.setRiskLevel(resolveRiskLevel(finalScore));
+
         assessment.setModelVersion(MODEL_VERSION);
         assessment.setEvaluatedAt(LocalDateTime.now());
 
