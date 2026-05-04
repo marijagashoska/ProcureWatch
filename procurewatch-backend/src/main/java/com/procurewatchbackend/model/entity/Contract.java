@@ -19,14 +19,8 @@ import java.time.LocalDate;
 @Builder
 public class Contract {
 
-    @OneToOne // Секој договор има еден поврзан оглас
-    @JoinColumn(name = "notice_id")
-    private Notice notice;
 
-    // Додади Getter и Setter (или користи @Data од Lombok)
-    public Notice getNotice() {
-        return notice;
-    }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

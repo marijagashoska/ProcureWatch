@@ -1,5 +1,6 @@
 package com.procurewatchbackend.service.domain.impl;
 
+import com.procurewatchbackend.ai.AnomalyDetectionService;
 import com.procurewatchbackend.model.entity.Contract;
 import com.procurewatchbackend.model.entity.Decision;
 import com.procurewatchbackend.model.entity.Notice;
@@ -12,6 +13,8 @@ import com.procurewatchbackend.model.enums.RiskLevel;
 import com.procurewatchbackend.repository.ContractRepository;
 import com.procurewatchbackend.repository.NoticeRepository;
 import com.procurewatchbackend.repository.RiskAssessmentRepository;
+import com.procurewatchbackend.service.domain.AnomalyScoreService;
+import com.procurewatchbackend.service.domain.FinalRiskScoringService;
 import com.procurewatchbackend.service.domain.RiskAssessmentDomainService;
 import com.procurewatchbackend.service.domain.TextSimilarityService;
 import jakarta.persistence.EntityNotFoundException;
