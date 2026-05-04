@@ -24,7 +24,7 @@ public class PlanItem {
     @JoinColumn(name = "plan_id", nullable = false)
     private ProcurementPlan plan;
 
-//    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
     private String cpvCode;
@@ -33,9 +33,9 @@ public class PlanItem {
     private String expectedStartMonth;
     private Boolean hasNotice;
 
-//    @Column(length = 3000)
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

@@ -2,10 +2,7 @@ package com.procurewatchbackend.service.application;
 
 import com.procurewatchbackend.dto.create.CreateContractDto;
 import com.procurewatchbackend.dto.display.GetContractDto;
-import com.procurewatchbackend.dto.display.GetContractTableRowDto;
-import com.procurewatchbackend.dto.display.PagedResponseDto;
 import com.procurewatchbackend.dto.edit.EditContractDto;
-import com.procurewatchbackend.model.enums.RiskLevel;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,4 +36,12 @@ public interface ContractApplicationService {
             BigDecimal minValue, BigDecimal maxValue, RiskLevel riskLevel,
             int page, int size, String sortBy, String sortDir);
     PagedResponseDto<GetContractDto> getAllPaginated(int page, int size, String sortBy, String sortDir);
+
+    PagedResponseDto<GetContractDto> getAllPaginated(
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    );
+
 }

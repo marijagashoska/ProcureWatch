@@ -25,12 +25,18 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
     Optional<Notice> findFirstByNoticeNumber(String noticeNumber);
 
+    Optional<Notice> findFirstByNoticeNumberIgnoreCase(String noticeNumber);
+
     @Query("select distinct n from Notice n where n.decisions is not empty")
     List<Notice> findAllThatHaveDecision();
 
     @Query("select distinct n from Notice n where n.decisions is empty")
     List<Notice> findAllThatDontHaveDecision();
 
+    Optional<Notice> findFirstByNoticeNumberAndPlanItemIsNotNullOrderByIdAsc(String noticeNumber);
 
+    Optional<Notice> findFirstByNoticeNumberOrderByIdAsc(String noticeNumber);
+
+    List<Notice> findByNoticeNumberOrderByIdAsc(String noticeNumber);
 
 }

@@ -1,53 +1,42 @@
 package com.procurewatchbackend.scraper;
 
-import com.procurewatchbackend.util.MojibakeFixer;
-import com.procurewatchbackend.util.TextNormalizer;
-
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public record ScrapedRow(Map<String, String> fields, String sourceUrl) {
+public record ScrapedRow(
+        Map<String, String> fields,
+        String sourceUrl
+) {
 
     public ScrapedRow {
-        Map<String, String> fixedFields = new LinkedHashMap<>();
-
-        if (fields != null) {
-            for (Map.Entry<String, String> entry : fields.entrySet()) {
-                String fixedKey = MojibakeFixer.fix(entry.getKey());
-                String fixedValue = MojibakeFixer.fix(entry.getValue());
-
-                fixedFields.put(fixedKey, fixedValue);
-            }
+        if (fields == null) {
+            fields = new LinkedHashMap<>();
         }
-
-        fields = Collections.unmodifiableMap(fixedFields);
-        sourceUrl = MojibakeFixer.fix(sourceUrl);
     }
 
-    public String get(String... possibleNames) {
-        if (possibleNames == null || possibleNames.length == 0) {
+    public String get(String... aliases) {
+        if (aliases == null) {
             return null;
         }
 
-        for (String possibleName : possibleNames) {
-            String fixedPossibleName = MojibakeFixer.fix(possibleName);
-            String direct = fields.get(fixedPossibleName);
+        for (String alias : aliases) {
+            if (alias == null || alias.isBlank()) {
+                continue;
+            }
 
-            if (hasText(direct)) {
+            String direct = fields.get(alias);
+            if (isPresent(direct)) {
                 return direct.trim();
             }
-        }
 
-        for (Map.Entry<String, String> entry : fields.entrySet()) {
-            String key = TextNormalizer.normalizeKey(MojibakeFixer.fix(entry.getKey()));
+            String normalizedAlias = normalizeKey(alias);
 
-            for (String possibleName : possibleNames) {
-                String wanted = TextNormalizer.normalizeKey(MojibakeFixer.fix(possibleName));
+            for (Map.Entry<String, String> entry : fields.entrySet()) {
+                String normalizedKey = normalizeKey(entry.getKey());
 
-                if (key.equals(wanted) || key.contains(wanted) || wanted.contains(key)) {
-                    String value = MojibakeFixer.fix(entry.getValue());
-                    return hasText(value) ? value.trim() : null;
+                if (normalizedKey.equals(normalizedAlias)) {
+                    String value = entry.getValue();
+                    return value == null ? null : value.trim();
                 }
             }
         }
@@ -55,17 +44,53 @@ public record ScrapedRow(Map<String, String> fields, String sourceUrl) {
         return null;
     }
 
-    public ScrapedRow with(String key, String value) {
-        Map<String, String> copy = new LinkedHashMap<>(fields);
-
-        if (hasText(key) && hasText(value)) {
-            copy.put(MojibakeFixer.fix(key), MojibakeFixer.fix(value));
+    public ScrapedRow merge(ScrapedRow other) {
+        if (other == null) {
+            return this;
         }
 
-        return new ScrapedRow(copy, sourceUrl);
+        Map<String, String> merged = new LinkedHashMap<>(this.fields);
+
+        for (Map.Entry<String, String> entry : other.fields.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+
+            if (isPresent(key) && isPresent(value)) {
+                merged.put(key.trim(), value.trim());
+            }
+        }
+
+        String mergedSourceUrl = isPresent(other.sourceUrl)
+                ? other.sourceUrl
+                : this.sourceUrl;
+
+        return new ScrapedRow(merged, mergedSourceUrl);
     }
 
-    private static boolean hasText(String value) {
-        return value != null && !value.trim().isEmpty();
+    public ScrapedRow with(String key, String value) {
+        Map<String, String> updated = new LinkedHashMap<>(this.fields);
+
+        if (isPresent(key) && isPresent(value)) {
+            updated.put(key.trim(), value.trim());
+        }
+
+        return new ScrapedRow(updated, this.sourceUrl);
+    }
+
+    private static boolean isPresent(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String normalizeKey(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .replace("\u00A0", " ")
+                .replace(":", "")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase();
     }
 }

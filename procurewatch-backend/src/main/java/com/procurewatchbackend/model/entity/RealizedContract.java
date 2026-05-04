@@ -39,7 +39,7 @@ public class RealizedContract  {
 //    @Column(nullable = false)
     private String noticeNumber;
 
-//    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
     private String contractType;
@@ -57,6 +57,6 @@ public class RealizedContract  {
     private LocalDate publicationDate;
     private LocalDate republishDate;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

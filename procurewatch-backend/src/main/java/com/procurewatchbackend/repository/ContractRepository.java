@@ -82,10 +82,24 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
 
     Optional<Contract> findFirstByNoticeNumber(String noticeNumber);
 
+    Optional<Contract> findFirstByNoticeNumberIgnoreCase(String noticeNumber);
+
+    Optional<Contract> findFirstBySourceUrl(String sourceUrl);
+
     Optional<Contract> findFirstByNoticeNumberAndInstitutionIdAndSupplierIdAndSubjectContainingIgnoreCase(
             String noticeNumber,
             Long institutionId,
             Long supplierId,
             String subject
     );
+
+    List<Contract> findByNoticeNumberOrderByIdAsc(String noticeNumber);
+
+    Optional<Contract> findFirstByNoticeNumberOrderByIdAsc(String noticeNumber);
+
+    Optional<Contract> findFirstByNoticeNumberIgnoreCaseAndSupplierIdOrderByIdAsc(
+            String noticeNumber,
+            Long supplierId
+    );
+    List<Contract> findByNoticeNumberIgnoreCaseOrderByIdAsc(String noticeNumber);
 }

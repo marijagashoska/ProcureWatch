@@ -46,18 +46,26 @@ public class Contract {
     private RiskAssessment riskAssessment;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "notice_id")
+    private Notice notice;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String noticeNumber;
 
-//    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
+    @Column(columnDefinition = "TEXT")
     private String contractType;
+    @Column(columnDefinition = "TEXT")
     private String procedureType;
+
     private LocalDate contractDate;
+
     private LocalDate publicationDate;
 
 //    @Column(precision = 18, scale = 2)
@@ -68,7 +76,7 @@ public class Contract {
 
     private String currency;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 
 }

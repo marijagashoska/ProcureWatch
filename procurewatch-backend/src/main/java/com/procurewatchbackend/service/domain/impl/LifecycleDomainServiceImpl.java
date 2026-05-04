@@ -79,11 +79,42 @@ public class LifecycleDomainServiceImpl implements LifecycleDomainService {
     }
 
     private Notice resolveNotice(Contract contract) {
-        if (contract.getNoticeNumber() == null || contract.getNoticeNumber().isBlank()) {
+        String normalizedContractNoticeNumber = normalizeNoticeNumber(contract.getNoticeNumber());
+
+        if (!hasText(normalizedContractNoticeNumber)) {
             return null;
         }
 
-        return noticeRepository.findFirstByNoticeNumber(contract.getNoticeNumber())
+        return noticeRepository.findFirstByNoticeNumber(normalizedContractNoticeNumber)
+                .or(() -> noticeRepository.findAll()
+                        .stream()
+                        .filter(notice -> normalizedContractNoticeNumber.equals(
+                                normalizeNoticeNumber(notice.getNoticeNumber())
+                        ))
+                        .findFirst())
                 .orElse(null);
+    }
+
+    private String normalizeNoticeNumber(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value
+                .replace('\u00A0', ' ')
+                .trim();
+
+        normalized = normalized.replaceAll(
+                "(?iu)(број\\s*на\\s*оглас|бр\\.?\\s*на\\s*оглас|оглас\\s*бр\\.?|notice\\s*number)\\s*[:：-]?\\s*",
+                ""
+        );
+
+        normalized = normalized.replaceAll("\\s+", "");
+
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -28,15 +28,15 @@ public class Supplier  {
 //    @Column(unique = true)
     private String externalId;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String officialName;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String normalizedName;
 
-//    @Column(length = 3000)
+    @Column(columnDefinition = "TEXT")
     private String realOwnersInfo;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

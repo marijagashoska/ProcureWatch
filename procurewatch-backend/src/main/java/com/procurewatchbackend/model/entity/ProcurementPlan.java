@@ -34,5 +34,7 @@ public class ProcurementPlan {
     private Integer planYear;
 
     private LocalDate publicationDate;
+
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }

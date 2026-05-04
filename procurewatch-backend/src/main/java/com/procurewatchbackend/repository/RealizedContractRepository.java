@@ -73,11 +73,20 @@ public interface RealizedContractRepository extends JpaRepository<RealizedContra
 
     Optional<RealizedContract> findFirstByNoticeNumber(String noticeNumber);
 
+    Optional<RealizedContract> findFirstByNoticeNumberIgnoreCase(String noticeNumber);
+
     Optional<RealizedContract> findFirstByNoticeNumberAndInstitutionIdAndSupplierId(
             String noticeNumber,
             Long institutionId,
             Long supplierId
     );
 
+    List<RealizedContract> findByNoticeNumberIgnoreCaseOrderByIdAsc(String noticeNumber);
 
+    List<RealizedContract> findByContractIdOrderByIdAsc(Long contractId);
+
+    Optional<RealizedContract> findFirstByNoticeNumberIgnoreCaseAndSupplierIdOrderByIdAsc(
+            String noticeNumber,
+            Long supplierId
+    );
 }

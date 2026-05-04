@@ -35,17 +35,21 @@ public class Notice  {
     @OneToMany(mappedBy = "notice", fetch = FetchType.LAZY)
     private List<Decision> decisions;
 
-//    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String noticeNumber;
 
-//    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
+    @Column(columnDefinition = "TEXT")
     private String contractType;
+    @Column(columnDefinition = "TEXT")
     private String procedureType;
+
     private LocalDate publicationDate;
+
     private LocalDateTime deadlineDate;
 
-//    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String sourceUrl;
 }
